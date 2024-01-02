@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.MemberMapper">
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+
+	<select id="countDashboard" resultType="AdminMemberDashboardVO">
+		select m.total, m.regist, w.withdraw, l.login
+		from (select count(*) total, count(case when member_regist_date >= (SELECT DATE_FORMAT(NOW(),'%Y%m%d')) then 1 end) regist from member) m,
+		(select count(*) withdraw from withdraw_member where withdraw_date > (SELECT DATE_FORMAT(NOW()-INTERVAL 7 DAY,'%Y%m%d'))) w,
+		(select	count(distinct member_no) login from login_log where login_date >= (SELECT DATE_FORMAT(NOW(),'%Y%m%d'))) l 
+	</select>
+
+	<select id="findmember"
+		resultType="AdminMemberVO">
+		select sum(case when o.total_state = '완료' then p.card_pay_money + p.cash_pay_money - p.post_money else 0 end) as sum_purchase_money,  
+		m.member_no, m.member_grade_name, m.member_id, m.member_name, m.phone_number, m.email, m.address, m.member_regist_date, m.gender, m.accrual_amount, m.birth_date 
+		from member m inner join ordersheet o on m.member_no = o.member_no 
+		inner join payment p on o.merchant_uid = p.merchant_uid  
+		where upper(m.inactive_status) = 'N'
+		<if test="member_no != 0">
+			and m.member_no = #{member_no}
+		</if>
+		<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="member_grade_name != 'all'">
+			and m.member_grade_name = #{member_grade_name}
+		</if>
+		group by o.member_no
+		union select 0 as sum_purchase_money, m.member_no, m.member_grade_name, m.member_id, m.member_name, m.phone_number, m.email, m.address, m.member_regist_date, m.gender, m.accrual_amount, m.birth_date 
+		from member m left outer join ordersheet o on m.member_no = o.member_no
+		where upper(m.inactive_status) = 'N' and o.member_no is null 
+		<if test="member_no != 0">
+			and m.member_no = #{member_no}
+		</if>
+		<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="member_grade_name != 'all'">
+			and m.member_grade_name = #{member_grade_name}
+		</if>
+		group by m.member_no
+	</select>
+
+	<select id="findRecentRegistMember" resultType="AdminMemberVO">
+		select * from member order by member_regist_date desc limit 5
+	</select>
+
+	<delete id="deleteMember">
+		delete from member where member_id = #{member_id}
+	</delete>
+	
+	<update id="updateInactiveStatus" parameterType="java.util.List">
+		update member set inactive_status = 'Y'
+		where member_no in
+		<foreach collection="list" item="member" separator=" , " open="(" close=")" >
+		${member}
+		</foreach>
+	</update>
+	
+	<update id="updateActiveStatus">
+		update member set inactive_status = 'N' where member_id = #{value}
+	</update>
+	
+	<select id="findMemberNoPerSixMonths" resultType="AdminMemberVO" parameterType="java.util.HashMap">
+		 select m.member_no
+				from member m inner join ordersheet o on m.member_no = o.member_no 
+				inner join payment p on o.merchant_uid = p.merchant_uid
+				where o.total_complete_date between (SELECT DATE_FORMAT(NOW()-INTERVAL 6 MONTH,'%Y%m%d')) and (SELECT DATE_FORMAT(NOW()-INTERVAL 1 DAY,'%Y%m%d')) 
+				group by m.member_no 
+				having sum(case when o.total_state = '완료' then p.card_pay_money + p.cash_pay_money - p.post_money else 0 end)
+		<if test="member_grade_name == '일반'">
+			<![CDATA[< 500000 ]]>
+		union
+				select m.member_no from member m  left outer join ordersheet o on m.member_no = o.member_no 
+				where o.member_no is null or 
+				(o.total_complete_date not between (SELECT DATE_FORMAT(NOW()-INTERVAL 6 MONTH,'%Y%m%d')) and (SELECT DATE_FORMAT(NOW()-INTERVAL 1 DAY,'%Y%m%d')) or o.total_complete_date is null)
+				group by m.member_no
+		</if>
+		<if test="member_grade_name == '실버'">
+			between 500000 and 999999
+		</if>
+		<if test="member_grade_name == '골드'" >
+			<![CDATA[>= 1000000 ]]>
+		</if>
+	</select>
+	
+	<select id="findBirthdayMember" resultType="String">
+		select phone_number from member where birth_date like '__${value}' and inactive_status = 'N'
+	</select>
+	
+	<update id="updateMemberGradePerSixMonths" parameterType="java.util.HashMap">
+		update member set member_grade_name = #{gradeName} where member_no in 
+		(
+		<foreach collection="memberList" item="member" separator=", ">	
+		#{member.member_no}
+		</foreach>
+		)
+	</update>
+	
+	<select id="selectPhoneNumberFromSelectedMembers" resultType="String">
+		select phone_number from member where member_no in (${to})
+	</select>
+	
+	<select id="findTakeTimeToOrder" resultType="AdminChartVO">
+		select 
+		count(case when mon.timetoorder is null then 1 end) as 'no',
+		count(case when mon.timetoorder = 0 then 1 end) as 'day',
+		count(case when mon.timetoorder between 1 and 6 then 1 end) as 'week',
+		count(case when mon.timetoorder between 7 and 30 then 1 end) as 'month',
+		count(case when mon.timetoorder between 31 and 100 then 1 end) as 'hundred',
+		count(case when mon.timetoorder > 100 then 1 end) as 'elses'
+		from (select datediff(min(o.order_day), m. member_regist_date) as timetoorder,
+		m.member_id, m.member_regist_date, min(o.order_day) as first_order_day from member m left outer join ordersheet o on m.member_no = o.member_no group by m.member_no) mon;
+	</select>
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- 아이디 중복검사 -->
+	<select id="checkUserId" resultType="String">
+		select member_id from member
+		where member_id = #{member_id}
+	</select>
+
+	<!-- 회원가입 -->
+	<insert id="registerMember">
+		insert into member(member_id,password, member_name, email, birth_date,
+		zip_code,address,gender,access_token,social_check,member_grade_name,phone_number)
+		values(#{member_id},sha1(md5(#{password})),
+		#{member_name},#{email},#{birth_date},#{zip_code},#{address},#{gender},#{access_token},
+		#{social_check},#{member_grade_name},#{phone_number})
+	</insert>
+	
+	<!-- 로그인하여 유저의 정보 가져오기 -->
+	<select id="selectUserInfo" resultType="UserMemberVO">
+		select * from member where member_id=#{member_id} and password=sha1(md5(#{password}))
+	</select>
+	
+	<!-- 유저의 아이디 찾기 -->
+	<select id="findMemberId" resultType="UserMemberVO">
+		select member_id, social_check, password from member where member_name=#{member_name} and phone_number = #{phone_number}
+	</select>
+	
+	<!-- 비밀번호 찾기 -->
+	<select id="findMemberPwd" resultType="UserMemberVO">
+		select member_name, member_id, phone_number, social_check from member where member_name = #{member_name} and member_id = #{member_id} and phone_number = #{phone_number} 
+	</select>
+	
+	<!-- 비밀번호 변경 -->
+	<update id="updateMemberPwd">
+		update member set password = sha1(md5(#{password})) where member_id = #{member_id}
+	</update>
+	
+	<!-- 로그인 아이디 비밀번호 대조 -->
+	<select id="login" resultType ="String">
+		select member_id from member where member_id = #{member_id} and password = sha1(md5(#{password}))
+	</select>
+	
+	<!-- snslogin db에 넣어주기. -->
+	<insert id="snsloginregister">
+		insert into member(member_grade_name, access_token, email, birth_date, gender, inactive_status, social_check,enabled, authority) values(#{member_grade_name}, #{access_token}, #{email}, #{birth_date}, #{gender}, #{inactive_status}, #{social_check}, #{enabled}, #{authority})
+	</insert>
+	
+	<!-- 위의 쿼리문 실행후 no값 가져오기 -->
+	<select id="selectsnsno" resultType="String">
+		select member_no from member where social_check = #{social_check}
+	</select>
+	
+	<!-- snslogin 유저의 정보가 있는지 확인 -->
+	<select id="snscheckinfo" resultType="UserMemberVO">
+		select member_no, member_id, social_check from member where social_check = #{social_check}
+	</select>
+	<!-- 소셜로그인 정보가 있는지 확인 -->
+	<select id="snsloginmembercheck" resultType="UserMemberVO">
+		select member_id from member where member_id = #{member_id}
+	</select>
+	
+	<!-- 소셜로그인 정보를 추가로 받음 -->
+	<update id="addSnslogininfo">
+		update member set member_id = #{member_id}, member_name = #{member_name}, phone_number = #{phone_number}, zip_code = #{zip_code}, address = #{address}, gender=#{gender}, birth_date=#{birth_date} where member_no = #{member_no}
+	</update>
+	
+	<!-- snslogin세션 담기. -->
+	<select id="selectsnsloginforsession" resultType="UserMemberVO">
+		select member_no, member_id, social_check from member where member_no = #{member_no}
+	</select>
+	
+	<!-- 회원 정보 수정 -->
+	<update id="modifymemberinfo">
+		update member set member_name = #{member_name}, email = #{email}, phone_number = #{phone_number}, zip_code = #{zip_code}, address = #{address} where member_no = #{member_no}
+	</update>
+	
+	<!-- 회원가입후 저장하고 유저의 회원번호와 주소 가져오기 -->
+	<select id="selectmemberaddr" resultType="UserMemberVO">
+		select member_no, member_name, phone_number, zip_code, address from member where member_name = #{member_name} and phone_number = #{phone_number}	
+	</select>
+	
+	<!-- 회원정보 수정시에 기존의 번호 가져오기 -->
+	<select id="selectmemberphonenumber" resultType="String">
+		select phone_number from member where member_no = #{member_no}
+	</select>
+	
+	<!-- 회원 no를 이용하여 쇼핑리스트 가져오기. -->
+	<select id="getshoppinglist" resultType="com.brickfarm.vo.user.psj.ShoppingCartVO">
+	select p.product_name, p.product_price,
+		p.parts_quantity,
+		p.recommend_age, p.product_main_image,
+		pc.product_category_name,
+		st.stock_quantity, s.*
+		from shopping_cart as s, product as p,
+		product_category as pc, stock as st
+		where
+		s.product_code =
+		p.product_code and s.product_code = st.product_code and
+		p.product_category_no =
+		pc.product_category_no and s.member_no =
+		#{member_no};
+	</select>
+	
+	<!-- 로그인 시에 로그인 기록 남기기 -->
+	<insert id="insertloginlog">
+		insert into login_log (member_no) values (#{member_no})
+	</insert>
+	
+	<!-- 비밀번호 변경시 이전의 비밀번호 가져오기 -->
+	<select id="selectbeforepwd" resultType="String">
+		select password from member where member_id = #{member_id}
+	</select>
+	
+	<!-- 회원가입시 전화번호 가져오기 -->
+	<select id="findphonenumber" resultType="String">
+		select phone_number from member where phone_number = #{phone_number}
+	</select>
+	
+	<!-- 회원가입시 이메일 가져오기 -->
+	<select id="findemail" resultType="String">
+		select email from member where email = #{email}
+	</select>
+	
+	<!-- 회원가입시 social체크 가져오기 -->
+	<select id="findsocial" resultType="String">
+		select social_check from member where phone_number = #{phone_number}
+	</select>
+	
+	<!-- sns 추가 로그인시 전화번호 중복검사 -->
+	<select id="findmemberphoneinfo" resultType="String">
+		select phone_number from member where phone_number = #{phone_number}
+	</select>
+	
+	<!-- sns 로그인시에 이메일이 있는지 없는지 확인 -->
+	<select id="findmemberemail" resultType="String">
+		select email from member where email = #{email}
+	</select>
+	
+	<!-- 회원탈퇴시에 비밀번호 비교 -->
+	<select id="checkdeletememberpwd" resultType="String">
+		select password from member where member_no = #{member_no} and password = sha1(md5(#{password}))
+	</select>
+	
+	<!-- 탈퇴할 회원의 정보 가져오기. -->
+	<select id="selectdeletememberinfo" resultType="UserMemberVO">
+		select * from member where member_no = #{member_no} and password = sha1(md5(#{password}))
+	</select>
+	
+	<!-- 회원 탈퇴 -->
+	<delete id="deletememberinfo">
+		delete from member where member_no = #{member_no}
+	</delete>
+	
+	
+	<!-- 소셜로그인 회원 탈퇴시 이메일 체크 -->
+	<select id="checkdeletesocilmemberemail" resultType="String">
+		select email from member where member_no = #{member_no} and email = #{email}
+	</select>
+	
+	
+	
+
+
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<update id="updateMemberAccrualAmountByConfirmOrder">
+		UPDATE member
+		SET accrual_amount = accrual_amount + 
+		(
+		SELECT accrual_log_amount
+		FROM points_accrual_log
+		WHERE
+		points_accrual_policy_no IN (1, 2, 3) and member_no = #{member_no}
+		ORDER BY points_accrual_log_no DESC
+		LIMIT 1
+		)
+		WHERE member_no = #{member_no};
+	</update>
+	
+	<update id="updateMemberAccrualAmountByWriteReview">
+		UPDATE member set accrual_amount = accrual_amount + 500 WHERE member_no = #{memberNo};
+	</update>
+	
+	<update id="updateMemberAccrualAmountByWritePhotoReview">
+		UPDATE member set accrual_amount = accrual_amount + 1000 WHERE member_no = #{memberNo};
+	</update>
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<update id="updataMemberOnAccrualAmount">
+		UPDATE member SET accrual_amount = (accrual_amount - #{point_pay_money}) WHERE member_no = #{member_no}
+	</update>
+	
+	<update id="updateMemberOnAccumulate">
+		UPDATE member 
+		SET accrual_amount = 
+			(SELECT * FROM
+			(SELECT M.accrual_amount + 
+				CASE
+				WHEN P.post_money <![CDATA[<=]]> P.point_pay_money
+				THEN ROUND((P.card_pay_money + P.cash_pay_money) * PAP.points_accrual_rate)
+				WHEN P.post_money <![CDATA[>]]> P.point_pay_money
+				THEN ROUND((P.card_pay_money + P.cash_pay_money - (P.post_money - P.point_pay_money)) * PAP.points_accrual_rate)
+				END
+			FROM payment P
+				INNER JOIN ordersheet O
+					ON P.merchant_uid = O.merchant_uid
+                INNER JOIN member M 
+					ON O.member_no = M.member_no
+				INNER JOIN member_grade_policy MGP 
+					ON M.member_grade_name = MGP.member_grade_name
+				INNER JOIN points_accrual_policy PAP 
+					ON MGP.member_grade_name = PAP.member_grade_name     
+			WHERE O.merchant_uid = #{compareMerchantUid}) 
+			AS M2)   
+		WHERE member_no = 
+			(SELECT member_no 
+			FROM ordersheet 
+			WHERE merchant_uid = #{compareMerchantUid})
+	</update>
+	
+	<select id="selectMemberVerifyPoint" resultType="int">
+		SELECT accrual_amount FROM member WHERE member_no = #{member_no}
+	</select>
+	
+	<select id ="getMember" resultType="com.brickfarm.vo.user.ysh.UserMemberVO">
+   		SELECT * FROM member WHERE member_no = #{member_no}
+	</select>
+	
+	<select id="verifyPoint" resultType="int">
+		SELECT IF(accrual_amount >= #{point_pay_money}, 1, -1)
+		FROM member 
+		WHERE member_no = #{member_no}
+	</select>
+	
+	<select id="verifyCoupon" resultType="int">
+		SELECT COUNT(*)
+		FROM coupon_held
+		WHERE member_no = #{member_no} AND coupon_held_no= #{coupon_held_no} AND available_coupon = 'Y'
+	</select>
+	
+	<update id="updateCancelPoint">
+		UPDATE member 
+		SET accrual_amount = (accrual_amount + #{change_point_pay_money}) 
+		WHERE member_no = 
+			(
+			SELECT O.member_no 
+			FROM payment P 
+				INNER JOIN ordersheet O 
+					ON P.merchant_uid = O.merchant_uid 
+			WHERE imp_uid = #{imp_uid}
+			)
+	</update>
+	
+	<update id="updateSchedulerPoint">
+		UPDATE member 
+		SET accrual_amount = (accrual_amount + #{point_pay_money}) 
+		WHERE member_no = #{member_no}
+	</update>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

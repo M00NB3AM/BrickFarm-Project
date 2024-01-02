@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.ShoppingCartMapper">
+	<!-- 
+	<select id="식별자" resultType="패키지명.클래스명">
+		SELECT * FROM test
+	</select>
+ 	-->
+   
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<select id="selectHaveTheProduct" resultType="ShoppingCartVO">
+		select * from shopping_cart where member_no = #{member_no} and product_code = #{product_code}
+	</select>
+	
+	<update id="updateProductToCart">
+		update shopping_cart set quantity = quantity + #{quantity} where member_no = #{member_no} and product_code = #{product_code}
+	</update>
+		
+	<insert id="insertProductToCart">
+		insert into shopping_cart (member_no, product_code, quantity)
+		values (#{member_no}, #{product_code}, #{quantity})
+	</insert>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<select id="selectShoppingCartList"
+		resultType="com.brickfarm.dto.user.psj.UserShoppingCartDTO">
+		SELECT p.product_name, p.product_price,
+		p.parts_quantity, p.event_no,
+		p.recommend_age, p.product_main_image,
+		pc.product_category_name,
+		st.stock_quantity, s.*,
+		e.*
+		FROM shopping_cart AS s, product AS p,
+		product_category AS pc, stock AS st,
+		event AS e
+		WHERE
+		s.product_code = p.product_code AND
+		p.event_no = e.event_no AND
+		s.product_code = st.product_code AND
+		p.product_category_no = pc.product_category_no AND
+		s.member_no = #{member_no};
+	</select>
+	
+	<update id="updateShoppingCartProductCnt">
+		UPDATE shopping_cart SET quantity = #{quantity}
+		WHERE shopping_cart_no = #{shoppingCartNo}
+	</update>
+	
+	<delete id="deleteShoppingCart">
+		DELETE FROM shopping_cart WHERE shopping_cart_no =
+		#{shoppingCartNo};
+	</delete>
+
+	<delete id="deleteAllShoppingCart">
+		DELETE FROM shopping_cart WHERE member_no =
+		#{member_no};
+	</delete>
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<delete id="deleteShoppingCartList">
+		DELETE FROM shopping_cart WHERE member_no = #{member_no} AND product_code IN
+			<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+				#{item.product_code}
+			</foreach>
+	</delete>
+	
+	<select id="selectShoppingCartDataList" resultType="UserOrderProductDTO">
+		SELECT P.product_code, P.product_name, FORMAT(P.product_price, 0) AS product_price, 
+			FORMAT(ROUND(P.product_price*(1-E.discount_rate)), 0) AS event_product_price, 
+			SC.quantity, P.product_main_image, (E.discount_rate * 100) AS event_discount_rate
+		FROM shopping_cart SC
+			INNER JOIN product P
+				ON SC.product_code = P.product_code
+			INNER JOIN event E
+				ON P.event_no = E.event_no
+		WHERE SC.shopping_cart_no IN 
+		<foreach collection="shoppingCartNoList" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

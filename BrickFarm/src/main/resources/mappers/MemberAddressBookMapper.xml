@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.MemberAddressBookMapper">
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+	
+	<!-- ==[염세환]========================================================================================================================================== -->
+	
+	<!-- 일반회원 주소 등록 -->
+	<insert id="insertaddrbook">
+		insert into member_address_book (member_no, address_name, address, zip_code, recipient, phone_number, is_default) values (#{member_no}, '집', #{address}, #{zip_code}, #{member_name}, #{phone_number}, 'Y')
+	</insert>
+	
+	<!-- sns회원 주소 등록 -->
+	<insert id="insertsnsaddrbook">
+		insert into member_address_book (member_no, address_name, address, zip_code, recipient, phone_number, is_default) values (#{member_no}, '집', #{address}, #{zip_code}, #{member_name}, #{phone_number}, 'Y')	
+	</insert>
+	
+	<!-- ================================================================================================================================================== -->
+	
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<select id="selectAllAddressBook"
+		resultType="com.brickfarm.vo.user.psj.UserAddressBookVO">
+		SELECT * FROM member_address_book WHERE member_no = #{member_no} ORDER BY is_default DESC;
+	</select>
+	
+	<select id="selectAddressBookNameList" resultType="hashmap">
+		SELECT address_name FROM member_address_book WHERE member_no=#{member_no};
+	</select>
+	
+	<select id="selectDefaultAddress" resultType="int">
+	SELECT member_address_book_no FROM member_address_book WHERE member_no = #{member_no} AND is_default = 'Y';
+	</select>
+	
+	<select id="selectDefaultAddressBook" resultType="com.brickfarm.vo.user.psj.UserAddressBookVO">
+	SELECT * FROM member_address_book WHERE member_no = #{member_no} AND is_default = 'Y';
+	</select>
+	<insert id="insertAddressBook">
+		INSERT INTO member_address_book(member_no, address_name, address, zip_code, recipient, phone_number, is_default) VALUES (#{member_no}, #{address_name}, #{address}, #{zip_code}, #{recipient},#{phone_number}, #{is_default});
+	</insert>
+	
+	<update id="updateDefaultAddress">
+		UPDATE member_address_book SET is_default = 'N' WHERE member_address_book_no = #{member_address_book_no};
+	</update>
+	
+	<update id="updateAddressBook">
+		UPDATE member_address_book SET address_name=#{address_name}, address =#{address}, zip_code = #{zip_code}, recipient=#{recipient}, phone_number = #{phone_number}, is_default=#{is_default} WHERE member_address_book_no = #{member_address_book_no};
+	</update>
+	<delete id="deleteAddressBook">
+		DELETE FROM member_address_book WHERE member_address_book_no = #{member_address_book_no}
+	</delete>
+	<select id="selectAddressInfo" resultType="com.brickfarm.vo.user.psj.UserAddressBookVO">
+	 	SELECT * FROM member_address_book WHERE member_address_book_no = #{member_address_book_no};
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<select id="selectAddressBook" resultType="UserAddressVO">
+		SELECT * 
+		FROM member_address_book 
+		WHERE member_no = #{member_no}
+		ORDER BY is_default DESC
+	</select>
+	
+	<insert id="insertAddressBookByOrderPage">
+		INSERT INTO member_address_book (member_no, address_name, address, zip_code, recipient, phone_number)
+		VALUES (#{member_no}, #{address_name}, #{address}, #{zip_code}, #{recipient}, #{phone_number})
+	</insert>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

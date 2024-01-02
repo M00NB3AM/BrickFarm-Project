@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.PointsAccuralLogMapper">
+	<!-- ==[송지영]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]======================================================================================================================================== -->
+	<select id="findPointAccrualLog" resultType="AdminPointLogVO">
+		select p.accrual_date, m.member_name, m.member_id, p.merchant_uid, p.accrual_log_amount, pl.points_accrual_reason
+		from points_accrual_log p inner join member m on p.member_no = m.member_no 
+		inner join points_accrual_policy pl on pl.points_accrual_policy_no = p.points_accrual_policy_no
+		<where>
+		<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="date_start != '' and date_end != ''">
+			and DATE_FORMAT(p.accrual_date,'%Y-%m-%d') between
+			#{date_start} and #{date_end}
+		</if>
+		</where>
+	</select>
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]======================================================================================================================================== -->
+
+   <!-- ==[송영태]======================================================================================================================================== -->
+   <insert id="insertPointAccrualLogByCompletion">
+   		INSERT INTO points_accrual_log (points_accrual_policy_no, member_no, merchant_uid, accrual_log_amount) 
+   		SELECT PAP.points_accrual_policy_no, O.member_NO, O.merchant_uid, 
+   		CASE
+   		WHEN P.post_money <![CDATA[<=]]> P.point_pay_money
+   		THEN ROUND((P.card_pay_money + P.cash_pay_money) * PAP.points_accrual_rate)
+   		WHEN P.post_money <![CDATA[>]]> P.point_pay_money
+   		THEN ROUND((P.card_pay_money + P.cash_pay_money - (P.post_money - P.point_pay_money)) * PAP.points_accrual_rate)
+   		END
+   		FROM ordersheet O 
+   			INNER JOIN member M 
+   				ON O.member_no = M.member_no
+			INNER JOIN payment P
+				ON O.merchant_uid = P.merchant_uid
+			INNER JOIN member_grade_policy MGP 
+				ON M.member_grade_name = MGP.member_grade_name
+			INNER JOIN points_accrual_policy PAP 
+				ON MGP.member_grade_name = PAP.member_grade_name
+		WHERE O.merchant_uid IN 
+   		<foreach collection="haveToMerchantUidList" item="item" open="(" close=")" separator=",">
+			#{item} 
+   		</foreach>
+   </insert>
+   <!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]======================================================================================================================================== -->
+	
+	<select id="selectPointsAccrualLog"
+		resultType="com.brickfarm.vo.user.psj.UserPointsAccrualLogVO">
+		SELECT log.*, policy.points_accrual_reason FROM
+		points_accrual_log AS log, points_accrual_policy AS policy WHERE
+		member_no = #{member_no} AND log.points_accrual_policy_no =
+		policy.points_accrual_policy_no ORDER BY accrual_date DESC;
+	</select>
+	
+	
+	<insert id="insertPointsAccrualLogByOrderConfirm">
+		INSERT INTO points_accrual_log
+		(points_accrual_policy_no, member_no, merchant_uid, accrual_date, accrual_log_amount)
+		VALUES (
+			CASE
+				WHEN (SELECT member_grade_name FROM member WHERE member_no = #{loginMemberNo}) = '일반' THEN 1
+				WHEN (SELECT member_grade_name FROM member WHERE member_no = #{loginMemberNo}) = '실버' THEN 2
+				ELSE 3
+		END,
+		#{loginMemberNo},
+		#{merchantUid},
+		now(),
+		( 
+			SELECT p.points_accrual_rate
+			FROM points_accrual_policy p
+			WHERE p.points_accrual_policy_no = (
+				CASE
+					WHEN (SELECT member_grade_name FROM member WHERE member_no = #{loginMemberNo}) = '일반' THEN 1
+					WHEN (SELECT member_grade_name FROM member WHERE member_no = #{loginMemberNo}) = '실버' THEN 2
+					ELSE 3
+				END 
+				)
+			) * #{actualPaymentAmount} 
+		)
+	</insert>
+	
+	<insert id="insertPointsAccrualLogByWriteReview">
+	INSERT INTO points_accrual_log(points_accrual_policy_no, member_no, merchant_uid, accrual_date, accrual_log_amount) VALUES (4, #{memberNo},#{merchantUid}, now(), 500);
+	</insert>
+	<insert id="insertPointsAccrualLogByWritePhotoReview">
+	INSERT INTO points_accrual_log(points_accrual_policy_no, member_no, merchant_uid, accrual_date, accrual_log_amount) VALUES (5, #{memberNo}, #{merchantUid},now(), 1000);
+	</insert>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+</mapper>

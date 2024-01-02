@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.CarryingOutMapper">
+	<!-- <select id="식별자" resultType="패키지명.클래스명"> SELECT * FROM test </select> -->
+
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<select id="selectAllCarryingOut" resultType="AdminCarryingOut">
+		select
+		c.carrying_out_no, sum(c.quantity) as quantity, sum(c.total_price) as
+		total_price, c.is_carried_out, c.carrying_out_date,
+		group_concat(distinct c.product_code separator "") as product_code,
+		group_concat(distinct p.product_name separator ", ") as product_name
+		from carrying_out c inner join product p on c.product_code =
+		p.product_code group by carrying_out_no order by
+		c.carrying_out_no desc
+		limit #{startRowIndex},
+		#{viewPostCntPerPage}
+	</select>
+	<select id="selectAllCarryingOutByCondition"
+		resultType="AdminCarryingOut">
+		select
+		c.carrying_out_no, sum(c.quantity) as quantity,
+		sum(c.total_price) as
+		total_price, c.is_carried_out,
+		c.carrying_out_date,
+		group_concat(distinct c.product_code separator "")
+		as product_code,
+		group_concat(distinct p.product_name separator ", ")
+		as product_name
+		from carrying_out c inner join product p on
+		c.product_code =
+		p.product_code
+		<where>
+			<if
+				test="search_type != 'all' and search_type == 'carrying_out_no' and search_word != ''">
+				and (c.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if
+				test="search_type != 'all' and search_type == 'product_name' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_name like concat ('%', '${search_word}',
+				'%') or
+				c.carrying_out_no like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test='wait.equals("Y") and all.equals("N") and complete.equals("N")'>
+				and (c.is_carried_out = 'N')
+			</if>
+			<if test='complete.equals("Y") and all.equals("N") and wait.equals("N")'>
+				and (c.is_carried_out = 'Y')
+			</if>
+			<if test='!min_date.equals("") and !max_date.equals("")'>
+				and (c.carrying_out_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		group by c.carrying_out_no order by c.carrying_out_no desc limit
+		#{startRowIndex}, #{viewPostCntPerPage}
+	</select>
+	<select id="selectSearchedTotalPostCnt" resultType="int">
+		select count(*) as totalPostCnt
+		from (select
+		c.carrying_out_no from
+		carrying_out c inner join product p on
+		c.product_code =
+		p.product_code
+		<where>
+			<if
+				test="search_type != 'all' and search_type == 'carrying_out_no' and search_word != ''">
+				and (c.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if
+				test="search_type != 'all' and search_type == 'product_name' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_name like concat ('%', '${search_word}',
+				'%') or
+				c.carrying_out_no like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test='wait == "Y" and all != "Y" and complete != "Y"'>
+				and (is_carried_out = 'N')
+			</if>
+			<if test='complete == "Y" and all != "Y" and wait != "Y"'>
+				and (is_carried_out = 'Y')
+			</if>
+			<if test='!min_date.equals("") and !max_date.equals("")'>
+				and (c.carrying_out_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		group by carrying_out_no) a
+	</select>
+	<select id="selectCarryingOutByNo" resultType="AdminCarryingOut">
+		select c.*,
+		p.product_name from carrying_out c inner join product p on
+		c.product_code
+		= p.product_code where carrying_out_no =
+		#{carrying_out_no}
+	</select>
+	<update id="updateCarryingOutComplete">
+		update carrying_out set is_carried_out = 'Y' where
+		product_code = ${product_code} and carrying_out_no =
+		${carrying_out_no}
+	</update>
+	<update id="updateCarryingOutModify">
+		update carrying_out set quantity = #{quantity},
+		total_price = (select
+		product_price from product where
+		product_code=#{product_code})*#{quantity} where
+		product_code =
+		#{product_code} and carrying_out_no = #{carrying_out_no}
+	</update>
+	<update id="updateCarryingOutConfirm">
+		update carrying_out set is_carried_out = 'Y' where
+		TIMESTAMPDIFF(DAY, Date(carrying_out_date), CURDATE()) > 2 and
+		is_carried_out =
+		'N'
+	</update>
+	<select id="selectCarriedOutCount" resultType="int">
+		select count(*) from
+		carrying_out where is_carried_out = 'Y'
+	</select>
+	<select id="selectTotalPostCnt" resultType="int">
+		select count(*) as
+		totalPostCnt
+		from (select
+		c.carrying_out_no from carrying_out c inner
+		join product p on
+		c.product_code =
+		p.product_code group by
+		carrying_out_no) a
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<select id="selectHasCarryingOut" resultType="int">
+		SELECT COUNT(carrying_out_no) 
+		FROM carrying_out 
+		WHERE product_code = #{product_code} 
+			AND is_carried_out = "N"
+	</select>
+	
+	<update id="updateCarryingOutData">
+		UPDATE carrying_out 
+		SET quantity = quantity + #{quantity} 
+		WHERE product_code = #{product_code} 
+			AND is_carried_out = "N"
+	</update>
+	
+	<insert id="insertCarryingOutData">
+		INSERT INTO carrying_out (product_code, quantity, total_price) 
+		VALUES (
+			#{product_code}, 
+			#{quantity}, 
+			((SELECT stock_price FROM product WHERE product_code = #{product_code}) * #{quantity})
+			)
+	</insert>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

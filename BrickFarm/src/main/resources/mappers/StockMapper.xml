@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.StockMapper">
+	<!-- <select id="식별자" resultType="패키지명.클래스명"> SELECT * FROM test </select> -->
+
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<insert id="insertProductStock">
+		insert into stock(product_code, is_auto_order,
+		safety_stock_quantity, stock_quantity) values
+		(#{product_code},
+		#{is_auto_order}, #{safety_stock_quantity}, #{stock_quantity})
+	</insert>
+	<update id="updateProductStockModify">
+		update stock set stock_quantity = #{stock_quantity},
+		safety_stock_quantity = #{safety_stock_quantity}, is_auto_order =
+		#{is_auto_order} where
+		product_code = #{product_code}
+	</update>
+	<update id="updateStock">
+		update stock s inner join receiving r on
+		s.product_code = r.product_code set stock_quantity = s.stock_quantity
+		+ r.quantity where
+		TIMESTAMPDIFF(DAY, Date(r.receiving_date),
+		CURDATE()) > 3 and
+		r.is_received =
+		'N' and s.product_code =
+		#{product_code}
+	</update>
+	<update id="updateStockManually">
+		update stock s inner join receiving r on
+		s.product_code = r.product_code set stock_quantity = s.stock_quantity
+		+ r.quantity where s.product_code = #{product_code} and receiving_no = #{receiving_no};
+	</update>
+	<delete id="deleteStock">
+		delete from stock where product_code =
+		#{product_code}
+	</delete>
+	<select id="selectStockCheck" resultType="AdminProduct">
+		select p.product_name, s.stock_quantity from product p
+		inner join stock s on p.product_code =
+		s.product_code
+		where
+		s.safety_stock_quantity > s.stock_quantity and
+		p.product_code not
+		in(select product_code from place_order where is_placed ='N')
+	</select>
+	<select id="selectSoldOutCount" resultType="int">
+		select count(*) from product p inner join stock s on p.product_code =
+		s.product_code where s.stock_quantity <![CDATA[ <= ]]>
+		0
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<select id="selectProductStockQuantity" resultType="int">
+		select
+		stock_quantity from stock where product_code = #{product_code}
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<update id="updateStockOnStockQuantity">
+		UPDATE stock
+		SET stock_quantity = stock_quantity -
+		CASE
+		<foreach collection="detailedOrderList" item="item">
+			WHEN product_code
+			= #{item.product_code} THEN #{item.quantity}
+		</foreach>
+		END
+		WHERE product_code IN
+		<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+			#{item.product_code}
+		</foreach>
+	</update>
+
+	<select id="isVerifyStock" resultType="int">
+		SELECT SUM(IF((stock_quantity -
+		CASE
+		<foreach collection="paymentList" item="item">
+			WHEN product_code = #{item.product_code} 
+			THEN #{item.quantity}
+		</foreach>
+		END
+		) >= 0, 0, -1))
+		FROM stock
+		WHERE product_code IN
+		<foreach collection="paymentList" item="item" open="(" close=")" separator=",">
+			#{item.product_code}
+		</foreach>
+	</select>
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

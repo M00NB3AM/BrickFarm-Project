@@ -1,0 +1,153 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>관리자 페이지</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <link rel="icon" type="image/png" sizes="16x16" href="/resources/user/images/logo/logo-1.png" />
+
+    <!-- Common Stylesheet -->
+    <link href="/resources/admin/css/kyj/common.css" rel="stylesheet" />
+
+    <!-- Daterangepicker -->
+    <link href="/resources/admin/vendor/bootstrap-daterangepicker/daterangepicker.css" rel="stylesheet" />
+
+    <!--====== jQuery 3.6.4 Js ======-->
+    <script src="/resources/user/js/kyj/jquery-3.6.4.js"></script>
+    
+    <!--====== Toastr Js ======-->
+    <script src="/resources/admin/vendor/toastr/js/toastr.min.js"></script>
+    
+    <!--====== Toastr call functions Js ======-->
+    <script type="text/javascript" src="/resources/admin/js/kyj/util-toastr.js"></script>
+
+    <!--====== chartJs init functions Js ======-->
+    <script type="text/javascript" src="/resources/admin/js/kyj/statistics/util-chartjs.js"></script>
+    
+    <!--====== 고객 분석 공용 Js ======-->
+    <script type="text/javascript" src="/resources/admin/js/kyj/statistics/members/members.js"></script>
+    
+    <!--====== day.jsp 용 Js ======-->
+    <script type="text/javascript" src="/resources/admin/js/kyj/statistics/members/day.js"></script>
+
+    <script>
+      $(function () {
+        printRecentWeekSelect();
+        printEmptyTable(undefined, 7);
+        
+        $('#recentWeek').on('change', function (e) {
+          setParams('recentWeek', e.target.value);
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div id="preloader">
+      <img id="lego" src="/resources/admin/images/lego.gif" alt="" />
+    </div>
+    <div id="main-wrapper">
+      <jsp:include page="/WEB-INF/views/admin/header.jsp"></jsp:include>
+      <!--**********************************
+            Content body start
+        ***********************************-->
+      <div class="content-body">
+        <!-- row -->
+        <div class="container-fluid">
+          <div class="form-head d-flex mb-3 align-items-start">
+            <div class="mr-auto d-none d-lg-block">
+              <h2 class="text-black font-w600 mb-0">요일별 분석</h2>
+              <p class="mb-0">최근 n 주간의 요일별 로그인 횟수, 신규가입자, 구매확정 상품수량·금액, 취소/반품확정 상품수량·금액을 볼 수 있습니다.</p>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-xl-12 col-lg-12">
+              <div class="card">
+                <div class="card-header">
+                  <h4 class="card-title">검색 조건</h4>
+                </div>
+                
+                <div class="card-body">
+                  <div class="col-12 mb-3">
+                    <div class="form-group row flex-wrapper">
+                      <div class="col-sm-3 col-form-label">기간</div>
+                      <div>최근</div>
+                      <div class="col-sm-2">
+                        <div class="form-group mb-0">
+                          <select class="form-control" id="recentWeek"></select>
+                        </div>
+                      </div>
+                      <div>주</div>
+                    </div>
+                  </div>
+
+                  <div class="col-12 mt-sm-1 mt-md-3">
+                    <button type="button" class="btn btn-primary col-12" onclick="search();">검색</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h4 class="card-title">통계 그래프</h4>
+                </div>
+                <div class="card-body">
+                  <canvas id="statByDayname"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h4 class="card-title">요일별 분석 내역</h4>
+                </div>
+                <div class="card-body">
+
+                  <div class="table-responsive">
+                    <table class="table header-border table-responsive-sm table-search-result">
+                      <thead id="resultHeader">
+                        <tr class="table-header-group">
+                          <th colspan="3"></th>
+                          <th colspan="2">구매 확정</th>
+                          <th colspan="2">취소/반품 확정</th>
+                        </tr>
+                        
+                        <tr>
+                          <th class="wd-3">요일</th>
+                          <th class="wd-5">로그인횟수</th>
+                          <th class="wd-5">신규가입자</th>
+                          <th class="wd-3">상품수</th>
+                          <th class="wd-6">상품금액</th>                          
+                          <th class="wd-3">상품수</th>
+                          <th class="wd-6">상품금액</th>
+                        </tr>
+                      </thead>
+                      <tbody id="searchResult"></tbody>
+                    </table>
+                  </div>
+
+                  <div class="pagination_wrapper" id="pagination"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--**********************************
+            Content body end
+        ***********************************-->
+    </div>
+
+    <!--**********************************
+        Scripts
+    ***********************************-->
+    <!-- Daterangepicker -->
+    <script src="/resources/admin/vendor/moment/moment.min.js"></script>
+    <script src="/resources/admin/vendor/bootstrap-daterangepicker/daterangepicker.js"></script>
+  </body>
+</html>

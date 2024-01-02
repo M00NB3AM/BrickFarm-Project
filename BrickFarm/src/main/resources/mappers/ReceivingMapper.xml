@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.ReceivingMapper">
+	<!-- <select id="식별자" resultType="패키지명.클래스명"> SELECT * FROM test </select> -->
+
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<select id="selectReceiving" resultType="AdminReceiving">
+		select r.receiving_no,
+		sum(r.quantity) as quantity, sum(r.total_price) as total_price,
+		r.is_received, r.receiving_date, group_concat(distinct r.product_code
+		separator "") as product_code, group_concat(distinct p.product_name
+		separator ", ") as product_name from receiving r inner join product p
+		on r.product_code = p.product_code group by receiving_no order by
+		receiving_no desc limit #{startRowIndex},
+		#{viewPostCntPerPage}
+	</select>
+	<select id="selectAllReceivingByCondition"
+		resultType="AdminReceiving">
+		select r.receiving_no,
+		sum(r.quantity) as quantity, sum(r.total_price)
+		as total_price,
+		r.is_received, r.receiving_date, group_concat(distinct
+		r.product_code
+		separator "") as product_code, group_concat(distinct
+		p.product_name
+		separator ", ") as product_name from receiving r inner
+		join product p
+		on r.product_code = p.product_code
+		<where>
+			<if
+				test="search_type != 'all' and search_type == 'receiving_no' and search_word != ''">
+				and (r.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if
+				test="search_type != 'all' and search_type == 'product_name' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_name like concat ('%', '${search_word}',
+				'%') or
+				r.receiving_no like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test='wait == "Y" and all != "Y" and complete != "Y"'>
+				and (is_received = 'N')
+			</if>
+			<if test='complete == "Y" and all != "Y" and wait != "Y"'>
+				and (is_received = 'Y')
+			</if>
+			<if test='!min_date.equals("") and !max_date.equals("")'>
+				and (r.receiving_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		group by receiving_no order by
+		receiving_no desc limit #{startRowIndex},
+		#{viewPostCntPerPage}
+	</select>
+	<select id="selectReceivingByNo" resultType="AdminReceiving">
+		select r.*,
+		p.product_name from receiving r inner join product p on
+		r.product_code
+		= p.product_code where receiving_no =
+		#{receiving_no}
+	</select>
+	<update id="updateReceivingComplete">
+		update receiving set is_received = 'Y' where
+		product_code = ${product_code} and receiving_no = ${receiving_no}
+	</update>
+	<update id="updateReceivingModify">
+		update receiving set quantity = #{quantity},
+		total_price = (select
+		product_price from product where
+		product_code=#{product_code})*#{quantity} where
+		product_code =
+		#{product_code} and receiving_no = #{receiving_no}
+	</update>
+	<delete id="deleteReceiving">
+		delete from receiving where product_code =
+		#{product_code} and is_received = 'N'
+	</delete>
+	<insert id="insertReceiving">
+		insert into receiving(receiving_no, product_code, quantity,
+		total_price)
+		values
+		<foreach collection="list" item="item" separator=" , ">
+			(#{item.place_order_no}, #{item.product_code}, #{item.quantity},
+			#{item.total_price})
+		</foreach>
+	</insert>
+	<update id="updateReceivingConfirm">
+		update receiving set is_received = 'Y' where
+		TIMESTAMPDIFF(DAY, Date(receiving_date), CURDATE()) > 2 and
+		is_received =
+		'N'
+	</update>
+	<select id="selectTotalPostCnt" resultType="int">
+		select count(*) as
+		totalPostCnt from (select r.receiving_no from receiving r inner join
+		product p on r.product_code = p.product_code group by r.receiving_no)
+		a
+	</select>
+	<select id="selectSearchedTotalPostCnt" resultType="int">
+		select count(*) as
+		totalPostCnt from (select r.receiving_no from
+		receiving r inner join
+		product p on r.product_code = p.product_code
+		<where>
+			<if
+				test="search_type != 'all' and search_type == 'receiving_no' and search_word != ''">
+				and (r.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if
+				test="search_type != 'all' and search_type == 'product_name' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_name like concat ('%', '${search_word}',
+				'%') or
+				r.receiving_no like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test='wait == "Y" and all != "Y" and complete != "Y"'>
+				and (is_received = 'N')
+			</if>
+			<if test='complete == "Y" and all != "Y" and wait != "Y"'>
+				and (is_received = 'Y')
+			</if>
+			<if test='!min_date.equals("") and !max_date.equals("")'>
+				and (r.receiving_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		group by receiving_no) a
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

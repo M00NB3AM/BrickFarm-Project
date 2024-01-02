@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.PlaceOrderMapper">
+	<!-- ==[송지영]======================================================================================================================================== -->
+	<select id="selectPlaceOrder" resultType="AdminPlaceOrder">
+		select
+		o.place_order_no, sum(o.quantity) as quantity, sum(o.total_price) as
+		total_price, o.is_placed, o.placed_date, group_concat(distinct
+		o.product_code separator "") as product_code, group_concat(distinct
+		p.product_name separator ", ") as product_name from place_order o
+		inner join product p on o.product_code = p.product_code
+		group by
+		place_order_no order by
+		place_order_no desc limit #{startRowIndex},
+		#{viewPostCntPerPage}
+	</select>
+	<select id="selectPlaceOrderByCondition"
+		resultType="AdminPlaceOrder">
+		select
+		o.place_order_no, sum(o.quantity) as quantity,
+		sum(o.total_price) as
+		total_price, o.is_placed, o.placed_date,
+		group_concat(distinct
+		o.product_code separator "") as product_code,
+		group_concat(distinct
+		p.product_name separator ", ") as product_name
+		from place_order o
+		inner join product p on o.product_code =
+		p.product_code
+		<where>
+			<if
+				test="search_type != 'all' and search_type == 'place_order_no' and search_word != ''">
+				and (o.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if
+				test="search_type != 'all' and search_type == 'product_name' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_name like concat ('%', '${search_word}',
+				'%') or
+				o.place_order_no like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test='wait == "Y" and all != "Y" and complete != "Y"'>
+				and (is_placed = 'N')
+			</if>
+			<if test='complete == "Y" and all != "Y" and wait != "Y"'>
+				and (is_placed = 'Y')
+			</if>
+			<if test='!min_date.equals("") and !max_date.equals("")'>
+				and (o.placed_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		group by place_order_no order by o.place_order_no desc limit
+		#{startRowIndex}, #{viewPostCntPerPage}
+	</select>
+	<select id="selectSearchedTotalPostCnt"
+		resultType="int">
+		select count(*) as totalPostCnt
+		from 
+		(select
+		o.place_order_no
+		from place_order o
+		inner join product p on o.product_code =
+		p.product_code
+		<where>
+			<if
+				test="search_type != 'all' and search_type == 'place_order_no' and search_word != ''">
+				and (o.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if
+				test="search_type != 'all' and search_type == 'product_name' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_name like concat ('%', '${search_word}',
+				'%') or
+				o.place_order_no like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test='wait == "Y" and all != "Y" and complete != "Y"'>
+				and (is_placed = 'N')
+			</if>
+			<if test='complete == "Y" and all != "Y" and wait != "Y"'>
+				and (is_placed = 'Y')
+			</if>
+			<if test='!min_date.equals("") and !max_date.equals("")'>
+				and (o.placed_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		group by place_order_no) a
+	</select>
+	<select id="selectPlaceOrderByNo" resultType="AdminPlaceOrder">
+		select o.*,
+		p.product_name from place_order o inner join product p on
+		o.product_code = p.product_code where place_order_no =
+		#{place_order_no}
+	</select>
+	<insert id="insertPlaceOrder">
+		insert into place_order(place_order_no, product_code, total_price,
+		quantity)
+		values
+		<foreach collection="list" item="item" separator=" , ">
+			(#{item.place_order_no}, #{item.product_code}, (select stock_price
+			from product where
+			product_code=#{item.product_code})*#{item.quantity},
+			#{item.quantity})
+		</foreach>
+	</insert>
+	<update id="updatePlaceOrder">
+		update place_order set quantity = #{quantity},
+		total_price = (select
+		product_price from product where
+		product_code=#{product_code})*#{quantity} where
+		product_code =
+		#{product_code} and place_order_no = #{place_order_no}
+	</update>
+	<delete id="deleteOrder">
+		delete from place_order where product_code =
+		#{product_code} and is_placed = 'N'
+	</delete>
+	<delete id="deleteOrderByCode">
+		delete from place_order where product_code =
+		#{product_code} and place_order_no = #{place_order_no}
+	</delete>
+	<delete id="deleteSelectedOrder">
+		delete from place_order where place_order_no =
+		#{place_order_no}
+	</delete>
+	<select id="selectPastThreeDaysOrder" resultType="AdminPlaceOrder">
+		select * from
+		place_order where TIMESTAMPDIFF(DAY,
+		Date(placed_date), CURDATE()) > 2
+		and is_placed = 'N'
+	</select>
+	<update id="updateOrderConfirm">
+		update place_order set is_placed = 'Y' where
+		TIMESTAMPDIFF(DAY, Date(placed_date), CURDATE()) > 2 and is_placed =
+		'N'
+	</update>
+	<insert id="insertPlaceOrderAuto">
+		<selectKey keyProperty="place_order_no" order="BEFORE"
+			resultType="int">
+			SELECT max(place_order_no) from place_order
+		</selectKey>
+		insert into place_order(place_order_no, product_code, total_price,
+		quantity)
+		values
+		<foreach collection="list" item="item" separator=" , ">
+			(#{place_order_no}+1, #{item.product_code}, (select stock_price
+			from product where
+			product_code=#{item.product_code})*(#{item.safety_stock_quantity} -
+			#{item.stock_quantity}),
+			(#{item.safety_stock_quantity} -
+			#{item.stock_quantity}))
+		</foreach>
+	</insert>
+	<select id="selectIsNotPlaced" resultType="int">
+		select count(*) from
+		place_order where product_code = #{product_code} and is_placed ='N';
+	</select>
+	<select id="selectTotalPostCnt" resultType="int">
+		select count(*) as
+		totalPostCnt from (select
+		o.place_order_no from place_order o
+		inner join
+		product p on o.product_code = p.product_code
+		group by
+		place_order_no) a
+	</select>
+	<select id="selectMaxPlaceOrderNo" resultType="int">
+		SELECT IFNULL(MAX(place_order_no), 0) + 1 from place_order
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+</mapper>

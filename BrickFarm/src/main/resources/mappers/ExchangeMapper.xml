@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.ExchangeMapper">
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- 상세 주문 정보(환불) -->
+	<select id="selectExchangeOrderInfo"
+		resultType="com.brickfarm.dto.user.psj.UserExchangeOrderDTO">
+		SELECT
+		od.merchant_uid,
+		od.detailed_order_no, 
+		od.discounted_price, 
+		od.quantity, 
+		od.payment_state, 
+		od.complete_date,
+        od.product_price,
+        od.product_code,
+		p.product_name, 
+		p.product_main_image,
+		ex.reason AS exchange_reason,
+        ex.post_number AS exchange_post_number,
+        ex.state AS exchange_state,
+		ex.application_date AS exchange_application_date,
+        ex.check_date AS exchange_check_date,
+        ex.process_date AS exchange_process_date,
+        ex.complete_date AS exchange_complete_date
+        FROM
+        detailed_order od LEFT JOIN product p
+		ON od.product_code = p.product_code
+		LEFT JOIN exchange ex ON
+		od.detailed_order_no = ex.detailed_order_no
+        WHERE
+		od.merchant_uid = #{merchant_uid} AND
+		od.payment_state = '교환';      
+	</select>
+	<!-- 교환 신청 -->
+	<insert id="insertExchangeApply">
+		INSERT INTO exchange(detailed_order_no, reason, state, application_date)
+		VALUES(#{detailed_order_no}, #{reason}, '신청', now())
+	</insert>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<select id="selectTotalDataCount" resultType="int">
+		SELECT COUNT(*) 
+		FROM exchange E 
+			INNER JOIN detailed_order D 
+				ON E.detailed_order_no = D.detailed_order_no
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			INNER JOIN ordersheet O 
+				ON D.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+		<where>
+      	<if test ='stateSelect !="전체"'>
+        	AND E.state = #{stateSelect}
+      	</if>
+		<if test='dateSelect !=""'>
+			AND DATE(${dateSelect}) BETWEEN #{dateStart} AND #{dateEnd}
+		</if>
+		<if test='wordSelect !="" and searchText !=""'>
+			AND ${wordSelect} LIKE CONCAT('%',#{searchText},'%')
+		</if>
+		</where>
+	</select>
+		
+	<select id="selectExchangeList" resultType="AdminExchangeVO">
+		SELECT E.exchange_no, E.reason, E.post_number, E.state, E.application_date, E.process_date, E.complete_date,
+			O.merchant_uid, O.order_day, M.member_id, P.product_name, D.quantity, P.product_main_image, 
+			FORMAT(D.discounted_price, 0) AS discounted_price, 
+			CASE 
+			WHEN CHAR_LENGTH(M.member_name) <![CDATA[>]]> 2 
+			THEN 
+				CONCAT(
+					SUBSTRING(M.member_name, 1, 1), 
+					LPAD("*", CHAR_LENGTH(M.member_name) - 2, "*"), 
+					SUBSTRING(M.member_name, CHAR_LENGTH(M.member_name), CHAR_LENGTH(M.member_name))
+				)
+				ELSE 
+				CONCAT(
+					SUBSTRING(M.member_name, 1, 1), 
+					LPAD("*", CHAR_LENGTH(M.member_name) - 1, "*")
+				)
+			END AS member_name
+		FROM exchange E 
+			INNER JOIN detailed_order D 
+				ON E.detailed_order_no = D.detailed_order_no
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			INNER JOIN ordersheet O 
+				ON D.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+  		<where>
+      	<if test ='searchDto.stateSelect !="전체"'>
+        	AND E.state = #{searchDto.stateSelect}
+      	</if>
+		<if test='searchDto.dateSelect !=""'>
+			AND DATE(${searchDto.dateSelect}) BETWEEN #{searchDto.dateStart} AND #{searchDto.dateEnd}
+		</if>
+		<if test='searchDto.wordSelect !="" and searchDto.searchText !=""'>
+			AND ${searchDto.wordSelect} LIKE CONCAT('%',#{searchDto.searchText},'%')
+		</if>
+		</where>
+		ORDER BY E.application_date DESC
+		LIMIT #{pagination.startRowIndex},#{pagination.showDataCountPerPage}
+	</select>
+	
+	<update id="updateExchangeByStateCheck">
+		UPDATE exchange 
+		SET state = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.state}
+			</foreach>
+			END
+			, post_number = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.post_number}
+			</foreach>
+			END
+			, check_date = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.check_date}
+			</foreach>
+			END
+			, process_date = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.process_date}
+			</foreach>
+			END
+			, complete_date = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.complete_date}
+			</foreach>
+			END 
+		WHERE exchange_no IN 
+			<foreach collection="exchangeList" item="item" open="(" close=")" separator=",">
+				#{item.exchange_no}
+			</foreach>
+	</update>
+		
+	<update id="updateExchangeByStateProcess">
+		UPDATE exchange 
+		SET state = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.state}
+			</foreach>
+			END
+			, post_number = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.post_number}
+			</foreach>
+			END
+			, process_date = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.process_date}
+			</foreach>
+			END
+			, complete_date = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.complete_date}
+			</foreach>
+			END 
+		WHERE exchange_no IN 
+			<foreach collection="exchangeList" item="item" open="(" close=")" separator=",">
+				#{item.exchange_no}
+			</foreach>
+	</update>
+		
+	<update id="updateExchangeByStateComplete">
+		UPDATE exchange 
+		SET state = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.state}
+			</foreach>
+			END
+			, complete_date = CASE
+			<foreach collection="exchangeList" item="item">
+				WHEN exchange_no = #{item.exchange_no} 
+				THEN #{item.complete_date}
+			</foreach>
+			END 
+		WHERE exchange_no IN 
+			<foreach collection="exchangeList" item="item" open="(" close=")" separator=",">
+				#{item.exchange_no}
+			</foreach>
+	</update>
+	
+	<select id="getMerchantUid" resultType="String">
+		SELECT D.merchant_uid 
+		FROM exchange E 
+			INNER JOIN detailed_order D ON E.detailed_order_no = D.detailed_order_no 
+		WHERE E.exchange_no IN 
+		<foreach collection="exchangeList" item="item" open="(" close=")" separator=",">
+			#{item.exchange_no}
+		</foreach>
+	</select>
+	
+	<delete id="deleteExchangeByDetailedOrderNo">
+		DELETE FROM exchange 
+		WHERE detailed_order_no IN 
+		<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+			#{item.detailed_order_no}
+		</foreach>
+	</delete>
+	
+	<insert id="insertExchangeList">
+		INSERT INTO exchange (detailed_order_no, reason) VALUES 
+		<foreach collection="detailedOrderList" item="item" separator=",">
+			(
+			#{item.detailed_order_no}, 
+			#{item.reason}
+			)
+		</foreach>
+	</insert>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

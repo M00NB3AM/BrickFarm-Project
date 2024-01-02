@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.EventMapper">
+	<!-- ==[송지영]======================================================================================================================================== -->
+	<select id="selectAllEvent" resultType="AdminEventVO">
+		select * from event
+	</select>
+	<select id="selectAllEventPaging" resultType="AdminEventVO">
+		select * from event
+		where event_no != 0 order by
+		event_no asc limit #{startRowIndex},
+		#{viewPostCntPerPage}
+	</select>
+	<select id="selectEventByCondition" resultType="AdminEventVO">
+		select * from event where event_no != 0
+		<if test="search_type != 'all' and search_word != ''">
+			and (${search_type} like concat ('%', '${search_word}',
+			'%'))
+		</if>
+		<if test="search_type == 'all' and search_word != ''">
+			and (event_no like concat ('%', '${search_word}',
+			'%') or
+			event_name like concat ('%', '${search_word}', '%'))
+		</if>
+		<if test="!event_start.equals('') and !event_end.equals('')">
+			and event_start <![CDATA[ >= ]]>
+			STR_TO_DATE(#{event_start}, '%Y-%m-%d') and event_end <![CDATA[ <= ]]>
+			STR_TO_DATE(#{event_end}, '%Y-%m-%d')
+		</if>
+		<if test="min_rate >= 0 and max_rate > min_rate">
+			and (discount_rate between '${min_rate}' and
+			'${max_rate}')
+		</if>
+		order by event_no asc limit #{startRowIndex}, #{viewPostCntPerPage}
+	</select>
+	<select id="selectEventDetail" resultType="AdminEventVO">
+		select * from event where
+		event_no = #{event_no}
+	</select>
+	<update id="updateEvent">
+		update event set event_name =
+		#{event_name},
+		event_start =
+		#{event_start},event_end =
+		#{event_end},discount_rate =
+		#{discount_rate}
+		where
+		event_no = #{event_no}
+	</update>
+	<insert id="insertEvent">
+		insert into event(event_name,
+		event_start,
+		event_end,
+		discount_rate) values
+		(#{event_name},#{event_start},
+		#{event_end},
+		#{discount_rate} / 100)
+	</insert>
+	<delete id="deleteEvent">
+		delete from event where event_no = #{event_no}
+	</delete>
+	<select id="selectTotalPostCnt" resultType="int">
+		select count(*) as
+		totalPostCnt from event where event_no != 0;
+	</select>
+	<select id="selectEventEndList" resultType="int">
+		select distinct e.event_no from event e inner join product p on e.event_no = p.event_no where e.event_end <![CDATA[ < ]]>
+		CURDATE() and e.event_no != 0 and p.event_no = e.event_no;
+	</select>
+	<select id="selectSearchedTotalPostCnt" resultType="int">
+		select count(*) as totalPostCnt from event where event_no != 0
+		<if test="search_type != 'all' and search_word != ''">
+			and (${search_type} like concat ('%', '${search_word}',
+			'%'))
+		</if>
+		<if test="search_type == 'all' and search_word != ''">
+			and (event_no like concat ('%', '${search_word}',
+			'%') or
+			event_name like concat ('%', '${search_word}', '%'))
+		</if>
+		<if test="!event_start.equals('') and !event_end.equals('')">
+			and event_start <![CDATA[ >= ]]>
+			STR_TO_DATE(#{event_start}, '%Y-%m-%d') and event_end <![CDATA[ <= ]]>
+			STR_TO_DATE(#{event_end}, '%Y-%m-%d')
+		</if>
+		<if test="min_rate >= 0 and max_rate > min_rate">
+			and (discount_rate between '${min_rate}' and
+			'${max_rate}')
+		</if>
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+</mapper>

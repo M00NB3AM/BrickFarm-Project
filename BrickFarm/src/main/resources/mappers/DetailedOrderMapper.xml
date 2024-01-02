@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.DetailedOrderMapper">
+
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<select id="selectFiveTopList" resultType="AdminProductRank">
+		select d.product_code, p.product_name, d.product_price, p.product_main_image, count(d.product_code) as ranking from detailed_order d inner join product p on d.product_code = p.product_code where payment_state = '구매확정' group by d.product_code order by ranking desc limit 5
+	</select>
+	<select id="selectSaledCount" resultType="int">
+		select count(*) from detailed_order where payment_state = '구매확정'
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<select id="findOrderDetailByMerchantUID" resultType="AdminDetailOrderInfoVO">
+		select case when p.virtual_account_bank_brand is not null then p.deposit_time else o.order_day end as checked_time,
+		case when p.cash_pay_money = 0 then m.member_name else depositor_name end as buyer,
+		case when p.card_brand is null then p.virtual_account_bank_brand else p.card_brand end as brand, 
+		case when p.card_number is null then p.virtual_account_number else p.card_number end as checked_info, 
+		case when p.card_brand is not null then '카드 결제' when p.virtual_account_number is not null then '무통장 입금' else '포인트 결제' end as payType,
+		case when c.add_post_money is null then p.post_money else p.post_money + c.add_post_money end as post_money, 
+		sum(d.product_price * d.quantity) as total_product_price, 
+		sum(d.discounted_price * quantity) as total_discounted_price,
+		p.cash_pay_money + p.card_pay_money as total_pay_money,
+		p.cancel_money, p.point_pay_money, m.member_name as member_name, m.member_id, m.phone_number, o.recipient, o.recipient_zip_code, o.recipient_address, o.recipient_phone, o.delivery_state, o.post_no, p.deposit_deadline
+		from detailed_order d inner join ordersheet o on o.merchant_uid = d.merchant_uid
+		inner join member m on o.member_no = m.member_no
+		inner join payment p on o.merchant_uid = p.merchant_uid
+		left outer join cancellation_return c on d.detailed_order_no = c.detailed_order_no 
+		group by o.merchant_uid having o.merchant_uid = #{value}
+	</select>
+	
+	<select id="findOrderDetailByMerchantUIDInWithdrawMember" resultType="AdminDetailOrderInfoVO">
+		select case when p.virtual_account_bank_brand is not null then p.deposit_time else o.order_day end as checked_time,
+		case when p.cash_pay_money = 0 then m.member_name else depositor_name end as buyer,
+		case when p.card_brand is null then p.virtual_account_bank_brand else p.card_brand end as brand, 
+		case when p.card_number is null then p.virtual_account_number else p.card_number end as checked_info, 
+		case when p.card_brand is not null then '카드 결제' when p.virtual_account_number is not null then '무통장 입금' else '포인트 결제' end as payType,
+		case when c.add_post_money is null then p.post_money else p.post_money + c.add_post_money end as post_money, 
+		sum(d.product_price * d.quantity) as total_product_price, 
+		sum(d.discounted_price * quantity) as total_discounted_price,
+		p.cash_pay_money + p.card_pay_money as total_pay_money,
+		p.cancel_money, p.point_pay_money, m.member_name as member_name, m.member_id, m.phone_number, o.recipient, o.recipient_zip_code, o.recipient_address, o.recipient_phone, o.delivery_state, o.post_no, p.deposit_deadline
+		from detailed_order d inner join ordersheet o on o.merchant_uid = d.merchant_uid
+		inner join withdraw_member m on o.withdraw_member_no = m.withdraw_member_no
+		inner join payment p on o.merchant_uid = p.merchant_uid
+		left outer join cancellation_return c on d.detailed_order_no = c.detailed_order_no 
+		group by o.merchant_uid having o.merchant_uid = #{value}
+	</select>
+	
+	
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- 상세 주문의 정보(취소,교환,환불 미포함) -->
+	<select id="selectOrder" resultType="com.brickfarm.dto.user.psj.UserOrderDTO">
+		SELECT 	
+		od.merchant_uid,
+		od.detailed_order_no, 
+		od.discounted_price, 
+		od.quantity, 
+		od.payment_state, 
+		od.complete_date,
+        od.product_price,
+        od.product_code,
+		p.product_name, 
+		p.product_main_image,
+        pr.detailed_order_no AS review_detailed_order_no
+        FROM
+        detailed_order od LEFT JOIN product p
+		ON od.product_code = p.product_code
+        LEFT JOIN product_review pr ON
+		od.detailed_order_no = pr.detailed_order_no
+        WHERE
+		od.merchant_uid = #{merchant_uid} AND
+		od.payment_state NOT IN('취소', '반품','교환');
+	</select>
+	
+	
+	<update id="updateDetailedOrderPaymentStateByOrderConfirm">
+		UPDATE detailed_order
+		SET payment_state = '구매확정',
+		complete_date = now()
+		WHERE detailed_order_no = #{detailed_order_no};
+	</update>
+	
+	
+	<select id="selectCompleteDetailedOrderCount" resultType="int">
+		SELECT count(detailed_order_no) FROM detailed_order WHERE merchant_uid = #{merchant_uid} and payment_state = "구매확정";
+	</select>
+	
+	
+	
+	<select id="selectCompleteExchangeDetailedOrderCount" resultType="int">
+    SELECT COUNT(*) AS total_count 
+    FROM exchange 
+    WHERE state = "완료"
+    AND detailed_order_no IN 
+    <foreach collection="detailedOrderNoList" item="detailedOrderNo" open="(" close=")" separator=",">
+	#{detailedOrderNo}
+    </foreach>
+	</select>
+	
+	<select id="selectCompleteCancelDetailedOrderCount" resultType="int">
+	SELECT COUNT(*) AS total_count 
+    FROM cancellation_return 
+    WHERE state = "완료"
+    AND detailed_order_no IN 
+    <foreach collection="detailedOrderNoList" item="detailedOrderNo" open="(" close=")" separator=",">
+	#{detailedOrderNo}
+    </foreach>
+	</select>
+	
+	<select id="selectDetailedOrderNoList" resultType="int">
+		SELECT detailed_order_no FROM detailed_order WHERE merchant_uid = #{merchant_uid};
+	</select>
+	
+	<!-- 취소, 반품, 교환 신청 시 상세 주문의 결제 상태 변경 -->
+	<update id="updateDetailedOrderPaymentStateByWithDrawal">
+		UPDATE detailed_order SET payment_state = #{what}
+		WHERE detailed_order_no = #{detailed_order_no};
+	</update>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<insert id="insertDetailedOrder">
+		INSERT INTO detailed_order (merchant_uid, product_code, product_price, discounted_price, quantity, payment_state) 
+		VALUES
+		<foreach collection="detailedOrderList" item="item" separator=",">
+			(
+			#{item.merchant_uid},
+			#{item.product_code},
+			#{item.product_price},
+			#{item.discounted_price},
+			#{item.quantity},
+			#{item.payment_state}
+			)
+		</foreach>
+	</insert>
+	
+	<update id="updateDetailedOrderOnPayment">
+		UPDATE detailed_order 
+		SET payment_state = #{state} 
+		WHERE detailed_order_no IN
+			<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+				#{item.detailed_order_no}
+			</foreach>
+	</update>
+	
+	<update id="updateDetailedOrderCompleteOnPayment">
+		UPDATE detailed_order 
+		SET payment_state = #{state}, complete_date = #{now}
+		WHERE detailed_order_no IN 
+		<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+			#{item.detailed_order_no}
+		</foreach>
+	</update>
+	
+	<select id="selectDetailedOrderGetUid" resultType="String">
+		SELECT merchant_uid 
+		FROM detailed_order 
+		WHERE detailed_order_no IN 
+		<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+			#{item.detailed_order_no}
+		</foreach>
+		GROUP BY merchant_uid
+	</select>
+	
+	<select id="getValidationPrice" resultType="int">
+		SELECT ROUND(SUM(
+			CASE
+			<foreach collection="paymentList" item="item">
+   				WHEN P.product_code = #{item.product_code}
+   				THEN (P.product_price * #{item.quantity})* (1 - E.discount_rate)
+   			</foreach>
+			END
+			))
+		FROM product P 
+			INNER JOIN event E 
+				ON P.event_no = E.event_no
+		WHERE P.product_code IN 
+			<foreach collection="paymentList" item="item" open="(" close=")" separator=",">
+					#{item.product_code}
+			</foreach>
+	</select>
+	
+	<update id="updateSchedulerDetailedOrderCancel">
+		UPDATE detailed_order 
+		SET payment_state = "취소"
+		WHERE detailed_order_no IN 
+			<foreach collection="schedulerDataList" item="item" open="(" close=")" separator=",">
+				#{item.detailed_order_no}
+			</foreach>
+	</update>
+	
+	<select id="selectCarryinOutDataList" resultType="UserPaymentListDTO">
+		<if test="what == '취소' or what == '반품'">
+			SELECT D.product_code, D.quantity 
+			FROM detailed_order D 
+				INNER JOIN cancellation_return CR 
+					ON D.detailed_order_no = CR.detailed_order_no
+			WHERE CR.cancellation_return_no IN 
+				<foreach collection="pkNumberList" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+		</if>
+		<if test="what == '교환'">
+			SELECT D.product_code, D.quantity 
+			FROM detailed_order D 
+				INNER JOIN exchange E 
+					ON D.detailed_order_no = E.detailed_order_no
+			WHERE E.exchange_no IN 
+				<foreach collection="pkNumberList" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+		</if>
+	</select>
+	
+	<select id="selectDeliveryDetailList" resultType="AdminDeliveryDetailVO">
+		SELECT D.detailed_order_no, FORMAT(D.discounted_price, 0) AS discounted_price, D.quantity, P.product_name,
+			P.product_main_image, REGEXP_SUBSTR(O.recipient_address, '[가-힣 ]+([도|시|군|구|동|로|읍|면|리|길])') AS recipient_address,
+			CASE 
+				WHEN C.state IS NOT NULL THEN CONCAT(D.payment_state, '(', C.state, ')') 
+				WHEN E.state IS NOT NULL THEN CONCAT(D.payment_state, '(', E.state, ')')
+				ELSE D.payment_state 
+			END AS state,
+			CASE 
+				WHEN C.complete_date IS NOT NULL THEN C.complete_date
+				WHEN E.complete_date IS NOT NULL THEN E.complete_date
+				ELSE D.complete_date 
+			END AS complete_date 
+		FROM detailed_order D
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			INNER JOIN ordersheet O
+				ON D.merchant_uid = O.merchant_uid
+			LEFT OUTER JOIN exchange E 
+				ON D.detailed_order_no = E.detailed_order_no
+			LEFT OUTER JOIN cancellation_return C
+				ON D.detailed_order_no = C.detailed_order_no
+		WHERE D.merchant_uid = #{merchant_uid}
+	</select>
+	
+	<select id="selectOrderDetailList" resultType="AdminOrderDetailVO">
+		SELECT D.detailed_order_no, P.product_name, FORMAT(P.product_price, 0) AS product_price, 
+			FORMAT(D.product_price, 0) AS event_product_price, 
+			FORMAT(D.discounted_price, 0) AS discounted_price, P.product_main_image, 
+			D.quantity, O.total_state, O.total_complete_date, O.memo
+		FROM detailed_order D
+			INNER JOIN ordersheet O  
+				ON D.merchant_uid = O.merchant_uid
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			LEFT OUTER JOIN cancellation_return C
+				ON D.detailed_order_no = C.detailed_order_no
+			LEFT OUTER JOIN exchange E
+				ON D.detailed_order_no = E.detailed_order_no
+		WHERE D.detailed_order_no = #{detailed_order_no}
+	</select>
+	
+	<select id="selectSchedulerStateManageOrderComplete" resultType="AdminDetailedOrderDTO">
+		SELECT detailed_order_no
+		FROM detailed_order
+		WHERE detailed_order_no 
+			IN (SELECT detailed_order_no 
+				FROM (SELECT D.detailed_order_no 
+					FROM detailed_order D 
+					INNER JOIN ordersheet O 
+						ON D.merchant_uid = O.merchant_uid 
+					WHERE O.delivery_state = "배송완료" 
+						AND O.delivery_waiting_date <![CDATA[<]]> DATE_ADD(now(), interval -11 DAY) 
+                		AND D.payment_state = "결제완료"
+					) AS D_ORDER)
+	</select>
+	
+	<select id="selectDetailedOrderGetCount" resultType="int">
+		SELECT count(*)
+		FROM detailed_order
+   		WHERE merchant_uid 
+   			IN (SELECT merchant_uid 
+   				FROM detailed_order 
+   				WHERE detailed_order_no 
+   					IN 
+   					<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+						#{item.detailed_order_no}
+					</foreach>
+   				GROUP BY merchant_uid)
+	</select>
+	
+	<select id="selectDashboardStateCount" resultType="int">
+		SELECT count(D.detailed_order_no)
+		FROM detailed_order D 
+			left OUTER JOIN cancellation_return C 
+				ON D.detailed_order_no = C.detailed_order_no
+			left OUTER JOIN exchange E 
+				ON D.detailed_order_no = E.detailed_order_no
+		WHERE C.state = "신청" or E.state = "신청"
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+</mapper>

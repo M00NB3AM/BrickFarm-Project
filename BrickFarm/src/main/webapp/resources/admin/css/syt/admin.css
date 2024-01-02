@@ -1,0 +1,81 @@
+:root {
+  --wd-base: 1.7em;
+  --gap-base: 1em;
+  --admin-main-color: #2f4cdd;
+}
+
+.wd-1 {
+  min-width: calc(var(--wd-base) * 1);
+}
+.wd-2 {
+  min-width: calc(var(--wd-base) * 2);
+}
+.wd-3 {
+  min-width: calc(var(--wd-base) * 3);
+}
+.wd-4 {
+  min-width: calc(var(--wd-base) * 4);
+}
+.wd-5 {
+  min-width: calc(var(--wd-base) * 5);
+}
+.wd-6 {
+  min-width: calc(var(--wd-base) * 6);
+}
+.wd-7 {
+  min-width: calc(var(--wd-base) * 7);
+}
+.wd-8 {
+  min-width: calc(var(--wd-base) * 8);
+}
+.wd-9 {
+  min-width: calc(var(--wd-base) * 9);
+}
+.wd-10 {
+  min-width: calc(var(--wd-base) * 10);
+}
+.wd-11 {
+  min-width: calc(var(--wd-base) * 11);
+}
+.wd-12 {
+  min-width: calc(var(--wd-base) * 12);
+}
+
+.searchControll {
+  display: inline-flex;
+}
+
+#paginationInput {
+  display: flex;
+  justify-content: center;
+}
+
+.searchControll .col-xl-2 {
+  margin-right: 10px;
+}
+
+#lego {
+  position: fixed;
+  width: 150px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 999;
+}
+      
+.page-item {
+  cursor: pointer;
+}
+      
+.listAll td{
+  cursor: pointer;
+}
+      
+table thead tr th, table tbody tr td {
+  vertical-align: middle !important;
+  text-align: center !important;
+}
+
+
+      
+

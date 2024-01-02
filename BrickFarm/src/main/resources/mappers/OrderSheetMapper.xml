@@ -1,0 +1,538 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.OrderSheetMapper">
+	<!-- ==[송지영]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]======================================================================================================================================== -->
+	<select id="findOrderMember" resultType="AdminOrderMemberVO">
+		
+		select sum(case when o.total_state = '완료' then p.card_pay_money + p.cash_pay_money - p.post_money else 0 end) as sum_purchase_money, 
+		count(o.merchant_uid) as sum_order_count, max(o.order_day) as order_day,
+		m.member_no, m.member_grade_name, m.member_id, m.member_name, m.phone_number, m.email, m.address, m.member_regist_date, m.gender, m.accrual_amount 
+		from member m inner join ordersheet o on m.member_no = o.member_no 
+		inner join payment p on o.merchant_uid = p.merchant_uid
+		<where>
+		<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="date_start != '' and date_end != ''">
+			and DATE_FORMAT(order_day,'%Y-%m-%d') between #{date_start} and #{date_end}
+		</if>
+		<if test="member_grade_name != 'all'">
+			and m.member_grade_name = #{member_grade_name}
+		</if>
+		</where>
+		 group by o.member_no
+		 <if test="money_range_start >= 0 and money_range_end > 0">
+			having sum_purchase_money between #{money_range_start} and
+			#{money_range_end}
+		</if>
+	</select>
+	
+	<select id="findBestCustomer" resultType="AdminOrderMemberVO">
+	select m.member_no, m.member_id, m.member_name, m.member_grade_name, 
+	count(case when o.total_state = '완료' then 1 end) as sum_order_count, 
+	sum(case when o.total_state = '완료' then p.card_pay_money + p.cash_pay_money - p.post_money else 0 end) as sum_purchase_money
+	from member m inner join ordersheet o on m.member_no = o.member_no 
+	inner join payment p on o.merchant_uid = p.merchant_uid
+	where o.total_complete_date between date_format(curdate() - interval 1 month, '%Y%M%D') and now() group by m.member_id order by sum_purchase_money desc limit 0, 5
+	</select>
+	
+	<select id="findMemberOrderList" resultType="AdminMemberOrderVO">
+	select m.member_no, m.member_name, m.member_id, 
+    case when upper(m.inactive_status) = 'Y' then '휴먼회원' else m.member_grade_name end as member_grade_name, 
+    o.merchant_uid, o.order_day, o.total_state, o.total_complete_date	
+	from member m inner join ordersheet o on m.member_no = o.member_no where m.member_no = #{member_no} limit #{startRowIndex}, #{rowOfNums}
+	</select>
+	
+	<select id="findOrderListCount" resultType="int">
+	select count(o.merchant_uid)	
+	from member m inner join ordersheet o on m.member_no = o.member_no where m.member_no = #{member_no}
+	</select>
+	
+	<update id="updateWithdrawMemberNo" parameterType="AdminWithdrawMemberDTO">
+		<selectKey keyProperty="member_no" resultType="int" order="BEFORE">
+			select member_no from member where member_id = #{member_id}
+		</selectKey>
+		update ordersheet set withdraw_member_no = (select withdraw_member_no from withdraw_member where member_no = #{member_no}) 
+		where member_no = #{member_no}
+
+		
+	</update>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]======================================================================================================================================== -->
+	
+	<update id="updatewithdrawmember">
+		update ordersheet set withdraw_member_no = #{withdraw_member_no} where member_no = #{member_no}
+	</update>
+	
+	
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]======================================================================================================================================== -->
+	<!-- 주문의 종합 정보 -->
+	<select id="selectOrderInfo" resultType="com.brickfarm.dto.user.psj.UserOrderInfoDTO">
+		SELECT
+		os.merchant_uid, <!-- 주문번호 -->
+		os.order_day,	<!-- 주문일 -->
+		os.delivery_waiting_date, <!-- 배송 대기중 변경 날짜 -->
+		os.post_no, <!-- 운송장 번호 -->
+		os.recipient, <!-- 수신인 -->
+		os.recipient_address, <!-- 수신지 -->
+		os.recipient_zip_code, <!-- 수신지 우편번호 -->
+		os.recipient_phone, <!-- 수신자폰번호 -->
+		os.bank_brand, <!-- 환불 받을 은행 -->
+		os.refund_account, <!-- 환불 받을 계좌 -->
+		os.delivery_state, <!-- 주문 전체의 배송 상태 -->
+		os.total_product_price, <!-- 주문 전체의 상품금액 -->
+		os.total_pay_money, <!-- 최종 실 결제 금액(가격 - 쿠폰할인금액) + 배송비 -->
+		os.total_state, <!-- 총 상태 -->
+		os.total_complete_date, <!-- 총 상태가 완료로 변경된 날짜 -->
+		pay.card_pay_money, <!-- 카드 결제 금액 -->
+		pay.card_brand, <!-- 카드 회사 명 -->
+		pay.card_number, <!-- 카드 번호 -->
+		pay.cash_pay_money, <!-- 현금 결제 금액 -->
+		pay.depositor_name, <!-- 무통장 입금자 이름 --> 
+		pay.deposit_time, <!-- 무통장 입금 시간 -->
+		pay.virtual_account_bank_brand, <!-- 가상계좌 은행 명 -->
+		pay.virtual_account_number, <!-- 가상계좌번호 -->
+		pay.deposit_deadline, <!-- 입금기한 -->
+		pay.post_money, <!-- 배송비 -->
+		pay.point_pay_money, <!-- 포인트 결제 금액 -->
+		pay.cancel_money <!-- 취소 환불 금액 -->
+		FROM
+		ordersheet os LEFT JOIN payment pay ON
+		pay.merchant_uid = os.merchant_uid
+		WHERE
+		os.member_no = #{member_no} AND
+		os.merchant_uid = #{merchant_uid};
+	</select>
+	
+	<update id="updateOrdersheetTotalCompleteDate">
+		UPDATE ordersheet SET total_complete_date = now(), total_state = "완료" WHERE merchant_uid = #{merchant_uid}
+	</update>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]======================================================================================================================================== -->	
+	<select id="compareCompleteStateExchange" resultType="String">
+		SELECT B.merchant_uid 
+		FROM 
+			(SELECT COUNT(*) AS complete, D.merchant_uid 
+			FROM detailed_order D 
+				LEFT OUTER JOIN exchange E 
+					ON D.detailed_order_no = E.detailed_order_no 
+				LEFT OUTER JOIN cancellation_return CR 
+					ON D.detailed_order_no = CR.detailed_order_no 
+			WHERE D.merchant_uid 
+				IN 
+				(SELECT D.merchant_uid 
+				FROM exchange E 
+					INNER JOIN detailed_order D 
+						ON E.detailed_order_no = D.detailed_order_no 
+				WHERE E.exchange_no IN 
+				<foreach collection="pkNumber" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				) 
+				AND ((D.payment_state IN ("구매확정")) 
+				OR (D.payment_state IN ("취소","반품") AND CR.state = "완료") 
+				OR (D.payment_state IN ("교환") AND E.state = "완료")) 
+			GROUP BY D.merchant_uid) A 
+			INNER JOIN 
+			(SELECT COUNT(*) AS total, D.merchant_uid 
+			FROM detailed_order D
+			WHERE D.merchant_uid
+				IN 
+				(SELECT D.merchant_uid 
+				FROM exchange E 
+					INNER JOIN detailed_order D 
+						ON E.detailed_order_no = D.detailed_order_no 
+				WHERE E.exchange_no IN 
+				<foreach collection="pkNumber" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				)
+			GROUP BY D.merchant_uid) B 
+				ON A.merchant_uid = B.merchant_uid 
+				AND A.complete = B.total 
+		GROUP BY B.merchant_uid
+	</select>
+	
+	<select id="compareCompleteStateCancelReturn" resultType="String">
+		SELECT B.merchant_uid 
+		FROM 
+			(SELECT COUNT(*) AS complete, D.merchant_uid 
+			FROM detailed_order D 
+				LEFT OUTER JOIN exchange E 
+					ON D.detailed_order_no = E.detailed_order_no 
+				LEFT OUTER JOIN cancellation_return CR 
+					ON D.detailed_order_no = CR.detailed_order_no 
+			WHERE D.merchant_uid 
+				IN 
+				(SELECT D.merchant_uid 
+				FROM cancellation_return CR 
+					INNER JOIN detailed_order D 
+						ON CR.detailed_order_no = D.detailed_order_no 
+				WHERE CR.cancellation_return_no IN 
+				<foreach collection="pkNumber" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				) 
+				AND ((D.payment_state IN ("구매확정")) 
+				OR (D.payment_state IN ("취소","반품") AND CR.state = "완료") 
+				OR (D.payment_state IN ("교환") AND E.state = "완료")) 
+			GROUP BY D.merchant_uid) A 
+			INNER JOIN 
+			(SELECT COUNT(*) AS total, D.merchant_uid 
+			FROM detailed_order D
+			WHERE D.merchant_uid
+				IN 
+				(SELECT D.merchant_uid 
+				FROM cancellation_return CR 
+					INNER JOIN detailed_order D 
+						ON CR.detailed_order_no = D.detailed_order_no 
+				WHERE CR.cancellation_return_no IN  
+				<foreach collection="pkNumber" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				)
+			GROUP BY D.merchant_uid) B 
+				ON A.merchant_uid = B.merchant_uid 
+				AND A.complete = B.total 
+		GROUP BY B.merchant_uid
+	</select>
+	
+	<select id="compareCompleteStateByUid" resultType="String">
+		SELECT B.merchant_uid 
+		FROM 
+			(SELECT COUNT(*) AS complete, D.merchant_uid 
+			FROM detailed_order D 
+				LEFT OUTER JOIN exchange E 
+					ON D.detailed_order_no = E.detailed_order_no 
+				LEFT OUTER JOIN cancellation_return CR 
+					ON D.detailed_order_no = CR.detailed_order_no 
+			WHERE D.merchant_uid 
+				IN 
+				<foreach collection="merchantUidList" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+				AND ((D.payment_state IN ("구매확정")) 
+				OR (D.payment_state IN ("취소","반품") AND CR.state = "완료") 
+				OR (D.payment_state IN ("교환") AND E.state = "완료")) 
+			GROUP BY D.merchant_uid) A 
+			INNER JOIN 
+			(SELECT COUNT(*) AS total, D.merchant_uid 
+			FROM detailed_order D
+			WHERE D.merchant_uid
+				IN 
+				<foreach collection="merchantUidList" item="item" open="(" close=")" separator=",">
+					#{item}
+				</foreach>
+			GROUP BY D.merchant_uid) B 
+				ON A.merchant_uid = B.merchant_uid 
+				AND A.complete = B.total 
+		GROUP BY B.merchant_uid
+	</select>
+	
+	<insert id="insertOrderSheet">
+		INSERT INTO ordersheet (merchant_uid, member_no, recipient, recipient_zip_code, recipient_address, 
+			recipient_phone, memo, delivery_state, bank_brand, refund_account, 
+			total_product_price, total_pay_money, coupon_held_no) 
+		VALUES (#{merchant_uid}, #{member_no}, #{recipient}, #{recipient_zip_code}, #{recipient_address}, 
+			#{recipient_phone}, #{memo}, #{delivery_state}, #{bank_brand}, #{refund_account}, 
+			#{total_product_price}, #{total_pay_money}, 
+			<if test="coupon_held_no == -1">
+				null
+			</if>
+			<if test="coupon_held_no != -1">
+				#{coupon_held_no}
+			</if>
+			)
+	</insert>
+	
+	<update id="updateOrderSheetOnState">
+		UPDATE ordersheet 
+		SET total_state = "완료", total_complete_date = #{now}  
+		WHERE merchant_uid IN 
+		<foreach collection="merchantUidList" item="item" open="(" close=")" separator=",">
+			#{item}
+		</foreach>
+	</update>
+	
+	<select id="selectTotalDataCount" resultType="int">
+		SELECT COUNT(*) 
+		FROM ordersheet O 
+			INNER JOIN detailed_order D 
+				ON O.merchant_uid = D.merchant_uid
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			INNER JOIN payment PM 
+				ON PM.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+			LEFT OUTER JOIN cancellation_return C
+				ON D.detailed_order_no = C.detailed_order_no
+			LEFT OUTER JOIN exchange E
+				ON D.detailed_order_no = E.detailed_order_no
+		<where>
+		<if test ='stateSelect !="전체"'>
+        	AND D.payment_state = #{stateSelect}
+      	</if>
+		<if test='totalState !=""'>
+			AND O.total_state = #{totalState}
+		</if>
+		<if test='dateSelect !=""'>
+			AND DATE(${dateSelect}) BETWEEN #{dateStart} AND #{dateEnd}
+		</if>
+		<if test='wordSelect !="" and searchText !=""'>
+			AND ${wordSelect} LIKE CONCAT('%',#{searchText},'%')
+		</if>
+		</where>
+	</select>
+		
+	<select id="selectOrderList" resultType="AdminOrderVO">
+		SELECT D.detailed_order_no, O.merchant_uid, M.member_id, P.product_name, 
+			FORMAT((D.discounted_price * D.quantity), 0) AS total_discounted_price, O.order_day, PM.deposit_time, O.delivery_state, O.delivery_waiting_date, 
+			O.post_no, P.product_main_image, 
+			CASE 
+			WHEN CHAR_LENGTH(M.member_name) <![CDATA[>]]> 2 
+			THEN 
+				CONCAT(
+					SUBSTRING(M.member_name, 1, 1), 
+					LPAD("*", CHAR_LENGTH(M.member_name) - 2, "*"), 
+					SUBSTRING(M.member_name, CHAR_LENGTH(M.member_name), CHAR_LENGTH(M.member_name))
+				)
+				ELSE 
+				CONCAT(
+					SUBSTRING(M.member_name, 1, 1), 
+					LPAD("*", CHAR_LENGTH(M.member_name) - 1, "*")
+				)
+			END AS member_name, 
+			CASE 
+				WHEN C.state IS NOT NULL THEN CONCAT(D.payment_state, '(', C.state, ')') 
+				WHEN E.state IS NOT NULL THEN CONCAT(D.payment_state, '(', E.state, ')')
+				ELSE D.payment_state 
+			END AS state,
+			CASE 
+				WHEN C.complete_date IS NOT NULL THEN C.complete_date
+				WHEN E.complete_date IS NOT NULL THEN E.complete_date
+				ELSE D.complete_date 
+			END AS complete_date 
+		FROM ordersheet O 
+			INNER JOIN detailed_order D 
+				ON O.merchant_uid = D.merchant_uid
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			INNER JOIN payment PM 
+				ON PM.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+			LEFT OUTER JOIN cancellation_return C
+				ON D.detailed_order_no = C.detailed_order_no
+			LEFT OUTER JOIN exchange E
+				ON D.detailed_order_no = E.detailed_order_no
+  		<where>
+      	<if test ='searchDto.stateSelect !="전체"'>
+        	AND D.payment_state = #{searchDto.stateSelect}
+      	</if>
+      	<if test='searchDto.totalState !=""'>
+			AND O.total_state = #{searchDto.totalState}
+		</if>
+		<if test='searchDto.dateSelect !=""'>
+			AND DATE(${searchDto.dateSelect}) BETWEEN #{searchDto.dateStart} AND #{searchDto.dateEnd}
+		</if>
+		<if test='searchDto.wordSelect !="" and searchDto.searchText !=""'>
+			AND ${searchDto.wordSelect} LIKE CONCAT('%',#{searchDto.searchText},'%')
+		</if>
+  		</where>
+		ORDER BY O.order_day DESC, O.merchant_uid DESC
+		LIMIT #{pagination.startRowIndex},#{pagination.showDataCountPerPage}
+	</select>
+	
+	<update id="updateOrdersheetOnDeliveryPrepare">
+		UPDATE ordersheet 
+		SET delivery_state = #{state} 
+		WHERE merchant_uid 
+			IN (SELECT merchant_uid 
+   				FROM detailed_order 
+   				WHERE detailed_order_no 
+   					IN (
+   					<foreach collection="detailedOrderList" item="item" separator=",">
+   						#{item.detailed_order_no}
+   					</foreach>
+   					)
+   				GROUP BY merchant_uid)
+	</update>
+	
+	<select id="selectTotalDeliveryDataCount" resultType="int">
+		SELECT COUNT(*) 
+		FROM ordersheet O 
+			INNER JOIN payment PM 
+				ON PM.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+		<where>
+		<if test ='stateSelect !="전체"'>
+        	AND O.delivery_state = #{stateSelect}
+      	</if>
+      	<if test='totalState !=""'>
+			AND O.total_state = #{totalState}
+		</if>
+		<if test='dateSelect !=""'>
+			AND DATE(${dateSelect}) BETWEEN #{dateStart} AND #{dateEnd}
+		</if>
+		<if test='wordSelect !="" and searchText !=""'>
+			AND ${wordSelect} LIKE CONCAT('%',#{searchText},'%')
+		</if>
+		</where>
+	</select>
+	
+	<select id="selectDeliveryList" resultType="AdminDeliveryVO">
+		SELECT O.merchant_uid, O.order_day, O.post_no, O.delivery_state, 
+		O.delivery_waiting_date, O.total_state, O.total_complete_date, 
+		FORMAT(O.total_pay_money, 0) AS total_pay_money, M.member_id, PM.deposit_time, O.memo, 
+		CASE 
+		WHEN CHAR_LENGTH(M.member_name) <![CDATA[>]]> 2 
+		THEN 
+			CONCAT(
+				SUBSTRING(M.member_name, 1, 1), 
+				LPAD("*", CHAR_LENGTH(M.member_name) - 2, "*"), 
+				SUBSTRING(M.member_name, CHAR_LENGTH(M.member_name), CHAR_LENGTH(M.member_name))
+			)
+			ELSE 
+			CONCAT(
+				SUBSTRING(M.member_name, 1, 1), 
+				LPAD("*", CHAR_LENGTH(M.member_name) - 1, "*")
+			)
+		END AS member_name
+		FROM ordersheet O 
+			INNER JOIN payment PM 
+				ON PM.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+  		<where>
+      	<if test ='searchDto.stateSelect !="전체"'>
+        	AND O.delivery_state = #{searchDto.stateSelect}
+      	</if>
+      	<if test='searchDto.totalState !=""'>
+			AND O.total_state = #{searchDto.totalState}
+		</if>
+		<if test='searchDto.dateSelect !=""'>
+			AND DATE(${searchDto.dateSelect}) BETWEEN #{searchDto.dateStart} AND #{searchDto.dateEnd}
+		</if>
+		<if test='searchDto.wordSelect !="" and searchDto.searchText !=""'>
+			AND ${searchDto.wordSelect} LIKE CONCAT('%',#{searchDto.searchText},'%')
+		</if>
+  		</where>
+		ORDER BY O.order_day DESC
+		LIMIT #{pagination.startRowIndex},#{pagination.showDataCountPerPage}
+	</select>
+	
+	<update id="updateOrderSheetOnDeliveryState">
+		UPDATE ordersheet 
+		SET delivery_state = #{state} 
+		WHERE merchant_uid IN 
+		<foreach collection="deliveryList" item="item" open="(" close=")" separator=",">
+   			#{item.merchant_uid}
+   		</foreach>
+	</update>
+	
+	<update id="updateOrderSheetOnDeliveryWait">
+		UPDATE ordersheet 
+		SET delivery_state = #{state}, delivery_waiting_date = #{now},
+			post_no = CASE 
+				<foreach collection="deliveryList" item="item">
+   					WHEN merchant_uid = #{item.merchant_uid} 
+   					THEN #{item.post_number}
+   				</foreach>
+   				END
+		WHERE merchant_uid IN 
+			<foreach collection="deliveryList" item="item" open="(" close=")" separator=",">
+   				#{item.merchant_uid} 
+   			</foreach>
+	</update>
+	
+	<update id="schedulerDelivery">
+		UPDATE ordersheet 
+		SET delivery_state = "배송중" 
+		WHERE merchant_uid 
+			IN (SELECT merchant_uid 
+				FROM (SELECT O.merchant_uid 
+					FROM ordersheet O 
+						INNER JOIN detailed_order D 
+							ON O.merchant_uid = D.merchant_uid
+					WHERE O.delivery_state = "배송대기중" 
+						AND D.payment_state != "취소") AS ORDER2)
+	</update>
+	
+	<update id="schedulerDeliveryCompleted">
+		UPDATE ordersheet 
+		SET delivery_state = "배송완료" 
+		WHERE merchant_uid 
+			IN (SELECT merchant_uid 
+				FROM (SELECT O.merchant_uid 
+					FROM ordersheet O
+						INNER JOIN detailed_order D
+							ON O.merchant_uid = D.merchant_uid
+            		WHERE delivery_state = "배송중" 
+            			AND delivery_waiting_date <![CDATA[<]]> DATE_ADD(now(), interval -4 DAY)
+            			AND D.payment_state != "취소") AS ORDER2);
+	</update>
+	
+	<select id="selectSchedulerDepositData" resultType="AdminSchedulerDataVO">
+		SELECT P.imp_uid, P.merchant_uid, D.detailed_order_no, P.point_pay_money, O.member_no, O.coupon_held_no
+		FROM payment P 
+			INNER JOIN ordersheet O 
+				ON P.merchant_uid = O.merchant_uid
+			INNER JOIN detailed_order D 
+				ON O.merchant_uid = D.merchant_uid
+		WHERE O.delivery_state = "결제대기" AND P.deposit_deadline <![CDATA[<]]> DATE_ADD(now(), interval -4 DAY) AND O.total_state = "진행중"
+	</select>
+	
+	<update id="updateSchedulerOrderSheet">
+		UPDATE ordersheet 
+		SET total_state = "완료", total_complete_date = #{now} 
+		WHERE merchant_uid IN 
+		<foreach collection="schedulerPaymentDataList" item="item" open="(" close=")" separator=",">
+			#{item.merchant_uid}
+		</foreach>
+	</update>
+	
+	<select id="selectDashboardCount" resultType="int">
+		SELECT COUNT(merchant_uid) 
+		FROM ordersheet WHERE order_day <![CDATA[>]]> #{now}
+	</select>
+	
+	<select id="selectDashboardSales" resultType="String">
+		SELECT FORMAT(SUM(P.total_pay_money), 0)
+		FROM ordersheet O 
+			INNER JOIN payment P 
+				ON O.merchant_uid = P.merchant_uid 
+		WHERE O.order_day <![CDATA[>]]> #{now}
+	</select>
+	
+	<select id="selectDashboardDeliveryCount" resultType="int">
+		SELECT COUNT(merchant_uid) 
+		FROM ordersheet WHERE delivery_state = "배송준비중"
+	</select>
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+</mapper>

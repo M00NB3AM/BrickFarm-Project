@@ -1,0 +1,249 @@
+tbody tr {
+	cursor: pointer;
+}
+
+thead th:nth-child(1), th:nth-child(2) {
+	text-align: center;
+}
+
+thead th:nth-child(1) {
+	width: 75px;
+}
+
+thead th:nth-child(2) {
+	width: 110px;	
+}
+
+thead th:nth-child(3) {
+	max-width: calc(100% - 75px - 110px - 190px);
+}
+
+thead th:nth-child(4) {
+	width: 190px;	
+}
+
+tbody td:nth-child(1), td:nth-child(2) {
+	text-align: center;
+}
+
+.paging {
+	display: flex;
+	justify-content: center;
+	margin-top: 15px;
+}
+
+.empty-table {
+	text-align: center;
+	padding: 100px !important;
+}
+
+.search-area {
+	display: flex;
+	justify-content: center;
+	margin-top: 15px;
+}
+
+.search-area .search-wrapper {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 15px;
+	min-width: 50%;
+}
+
+.search-area .search-wrapper > * {
+	margin-left: 5px;
+	margin-right: 5px;
+}
+
+.search-area select {
+	width: 100px;
+}
+
+.search-area .btn {
+	width: 100px;
+}
+
+.search-area .btn-search {
+	color: #fff;
+	background-color: var(--main-color);
+}
+
+.btn-inquiry {
+	color: #fff;
+	background-color: var(--main-color);
+}
+
+.page-link {
+	color: var(--main-color);
+}
+
+.page-link:hover {
+	color: var(--main-color);
+}
+
+.page-item.active .page-link{
+	background-color: var(--main-color);
+	border-color: var(--main-color);
+}
+
+.form-invisible {
+	display: none;
+}
+
+
+.textarea-inquiry-content {
+	padding-top: 18px !important;
+	padding-bottom: 18px !important;
+	height: 300px !important;
+	resize: none;
+}
+
+.area-file-upload {
+	width: 100%;
+	height: 100px;
+	border: 1px dotted #7f7f7f;
+	border-radius: 6px;
+	padding: 10px;
+	font-weight: bold;
+	color: rgba(183, 183, 183, 150);
+	font-size: 11pt;
+	
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	
+	-webkit-user-select:none;
+	-moz-user-select:none;
+	-ms-user-select:none;
+	user-select:none;
+}
+
+.area-file-upload.drag {
+	border-color: var(--main-color);
+	color: var(--main-color);
+}
+
+#uploadFilesParent {
+	display: none;
+}
+
+.area-file-uploaded {
+	display: flex;
+	padding: 15px;
+	gap: 15px;
+	border: 1px solid #eee;
+	border-radius: 6px;
+	overflow-x: auto;
+	
+	-webkit-user-select:none;
+	-moz-user-select:none;
+	-ms-user-select:none;
+	user-select:none;
+}
+.area-file-uploaded::-webkit-scrollbar {
+	height: 6px;
+}
+.area-file-uploaded::-webkit-scrollbar-thumb {
+	background-color: var(--main-color);
+	border-radius: 6px;
+}
+.area-file-uploaded::-webkit-scrollbar-track {
+	background-color: #ccc;
+	border-radius: 6px;
+}
+
+.wrapper-img {
+	position: relative;
+}
+
+.wrapper-img img.img-clickable {
+	cursor: pointer;
+}
+.wrapper-img img.img-clickable:hover {
+	opacity: 0.8;
+}
+
+.wrapper-img img.img-uploaded-file {
+	width: 70px;
+}
+
+.icon {
+	position: absolute;
+	cursor: pointer;
+	width: 20px;
+	top: 0;
+	right: 0;
+	border: 1px solid #fff;
+	border-radius: 50%;
+}
+
+.icon:hover {
+	filter: saturate(400%);
+}
+
+.detail-post .border-content {
+	border: 1px solid rgb(238, 238, 238);
+	border-radius: 6px;
+	padding: 20px;
+}
+
+.detail-post .detail-content {
+	border-top : 1px solid rgb(238, 238, 238);
+	min-height: calc(30vh);
+	padding: 20px 0;
+	margin-top: 20px;
+}
+
+.detail-post a.cursor-default {
+	cursor: default !important;
+}
+
+.modal {
+	-webkit-user-select:none;
+	-moz-user-select:none;
+	-ms-user-select:none;
+	user-select:none;
+}
+
+.modal-dialog {
+	margin: 0 auto !important;
+}
+
+.wrapper-modal-img {
+	display: flex !important;
+	justify-content: center;
+	align-items: center;
+	gap: 20px;
+	width: 100%;
+	height: 100vh;
+}
+
+.wrapper-modal-img img#imgModal {
+	max-width: 80vw;
+	max-height: 70%;
+	background-color: #fff;
+	border-radius: 6px;
+	border: 3px solid var(--main-color);
+	pointer-events: auto;
+}
+
+.wrapper-modal-img img.icon-controller {
+	width: 50px;
+	height: 50px;
+	cursor: pointer;
+	pointer-events: auto;
+}
+
+.wrapper-modal-img img.icon-prev-arrows {
+	content: url('/resources/user/images/kyj/previous_arrow.png');
+}
+.wrapper-modal-img img.icon-prev-arrows:hover {
+	content: url('/resources/user/images/kyj/previous_arrow_hover.png');
+}
+
+.wrapper-modal-img img.icon-next-arrows {
+	content: url('/resources/user/images/kyj/next_arrow.png');
+}
+.wrapper-modal-img img.icon-next-arrows:hover {
+	content: url('/resources/user/images/kyj/next_arrow_hover.png');
+}

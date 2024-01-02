@@ -1,0 +1,16 @@
+@charset "UTF-8";
+.emailbtn{
+	width: 265px;
+    margin: -55px;
+    padding: 0px;
+    background: none;
+    color: darkorange;
+    border: none;
+    height: 55px;
+    --bs-btn-hover-bg: none;
+    --bs-btn-hover-color: pink;
+    --bs-btn-hover-border-color: none;
+    --bs-link-hover-color: none;
+    --bs-btn-active-border-color: none;
+    --bs-btn-active-bg: none;
+}

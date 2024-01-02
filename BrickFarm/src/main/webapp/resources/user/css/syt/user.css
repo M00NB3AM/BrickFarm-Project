@@ -1,0 +1,35 @@
+
+      #lego {
+        position: fixed;
+        width: 150px;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 999;
+      }
+      
+      #change-delivery-address {
+        float: right;
+      }
+
+      #bankContainer,
+      #usePointContainer,
+      #usedPoint,
+      #accrualAmount,
+      #coupon-choces {
+        display: inline-flex;
+      }
+
+      #bank_brand {
+        width: 30%;
+      }
+
+      #refund_account {
+        width: 400px;
+        height: 45px;
+      }
+
+      #use_point {
+        width: 200px;
+      }
+      

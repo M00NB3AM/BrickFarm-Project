@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.ProductReviewMapper">
+<!-- ==[송지영]==========================================================================================================================================
+	 ================================================================================================================================================== -->
+	
+<!-- ==[김미형]==========================================================================================================================================
+	 ================================================================================================================================================== -->
+	
+<!-- ==[이경민]======================================================================================================================================== -->
+
+	
+	<select id="selectProductReviewList" resultType="UserProductReviewVO">
+	select product_review.*, member.member_name,
+		(
+		select GROUP_CONCAT(IFNULL(product_review_image.new_file_name, ''))
+		from product_review_image
+		where product_review.product_review_no =
+		product_review_image.product_review_no
+		) as new_file_name
+		from product_review
+		join member on product_review.member_no = member.member_no
+		where product_code = #{product_code}
+		<choose>
+			<when test="sortReview == 'highRating'">
+				order by star_count desc
+			</when>
+			<when test="sortReview == 'rowRating'">
+				order by star_count asc
+			</when>
+		</choose>
+		LIMIT #{startRowIndex}, #{viewPostCountPerPage}
+	</select>
+	
+
+<!-- ================================================================================================================================================== -->
+	
+<!-- ==[염세환]==========================================================================================================================================
+	 ================================================================================================================================================== -->
+	
+<!-- ==[박상진]========================================================================================================================================== -->
+	<select id="selectReviewProductInfo" resultType="com.brickfarm.dto.user.psj.UserProductReviewInfoDTO">
+		SELECT p.product_name, p.parts_quantity, p.product_main_image, p.recommend_age, p.product_category_no,
+        pc.product_category_name, od.product_code, od.detailed_order_no, od.merchant_uid FROM product AS p, product_category AS pc, detailed_order AS od
+        WHERE od.detailed_order_no = #{detailedOrderNo} AND od.product_code = p.product_code AND p.product_category_no = pc.product_category_no;
+	</select>
+	
+	<select id="selectProductReview" resultType="com.brickfarm.dto.user.psj.UserProductReviewDTO">
+		SELECT * FROM product_review WHERE detailed_order_no = #{detailed_order_no};
+	</select>
+		
+	<select id="selectReviewCount" resultType="int">
+		SELECT COUNT(product_review_no) FROM product_review WHERE member_no = #{memberNo};
+	</select>
+	
+	<insert id="insertProductReview">
+		INSERT INTO product_review(member_no, detailed_order_no, product_code, content, created_date, star_count) 
+		VALUES(#{member_no},#{detailed_order_no}, #{product_code}, #{content},now(),#{star_count})
+		<selectKey resultType="int" keyProperty="product_review_no" order="AFTER">
+	        SELECT LAST_INSERT_ID()
+	    </selectKey>
+	</insert>
+	
+	<update id="updateProductReview">
+		UPDATE product_review SET content = #{content}, star_count = #{star_count} WHERE detailed_order_no = #{detailed_order_no};
+	</update>
+<!-- ================================================================================================================================================== -->
+	
+<!-- ==[송영태]==========================================================================================================================================
+	 ================================================================================================================================================== -->
+	
+<!-- ==[김용진]==========================================================================================================================================
+	 ================================================================================================================================================== -->
+</mapper>

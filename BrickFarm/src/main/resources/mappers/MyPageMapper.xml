@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.MyPageMapper">
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	
+	
+	
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<select id="selectMyPage"
+		resultType="com.brickfarm.vo.user.ysh.UserMemberVO">
+		SELECT * FROM member WHERE member_no = #{loginMemberno}
+		
+	</select>
+	<!-- 유저 수량 정보 조회 -->
+	<select id="selectLoginMemberCntInfo"
+		resultType="com.brickfarm.vo.user.ysh.UserMemberVO">
+		SELECT
+		(SELECT COUNT(*) FROM product_wish_list WHERE
+		member_no = #{member_no}) AS
+		wish_list_count,
+		(SELECT COUNT(*) FROM
+		ordersheet WHERE member_no = #{member_no}) AS order_count,
+		(SELECT
+		COUNT(*) FROM ordersheet
+		JOIN detailed_order ON ordersheet.merchant_uid
+		=
+		detailed_order.merchant_uid
+		WHERE ordersheet.member_no = #{member_no}
+		AND detailed_order.payment_state IN ('취소',
+		'교환', '반품')
+		) AS
+		cancel_count,
+		(SELECT COUNT(*) FROM coupon_held WHERE member_no =
+		#{member_no} AND available_coupon =
+		'Y') AS coupon_count;
+	</select>
+	
+	
+	<!-- 주문 내역 List 조회 -->
+	<select id="selectOrderList"
+		resultType="com.brickfarm.dto.user.psj.UserOrderListDTO">
+		SELECT os.merchant_uid, os.total_pay_money,
+		os.order_day, os.delivery_state, os.delivery_waiting_date,
+		p.product_main_image, p.product_name, pay.point_pay_money,
+		SUM(od.quantity) AS total_quantity
+		FROM ordersheet os, detailed_order od, product p, payment pay
+		WHERE os.member_no = #{member_no}
+		AND os.merchant_uid = od.merchant_uid
+		AND os.merchant_uid = pay.merchant_uid
+		AND od.product_code = p.product_code
+
+		<choose>
+			<when test='searchPeriod == "5"'>
+				AND order_day BETWEEN DATE_ADD(now(), interval -5 DAY) and now()
+			</when>
+			<when test='searchPeriod == "15"'>
+				AND order_day BETWEEN DATE_ADD(now(), interval -15 DAY) and now()
+			</when>
+			<when test='searchPeriod == "30"'>
+				AND order_day BETWEEN DATE_ADD(now(), interval -30 DAY) and now()
+			</when>
+			<otherwise></otherwise>
+		</choose>
+		<choose>
+			<when test='searchState == "paymentPending"'>
+				AND delivery_state = '결제대기'
+			</when>
+			<when test='searchState == "preparingForShipment"'>
+				AND delivery_state = '배송준비중'
+			</when>
+			<when test='searchState == "waitingForShipment"'>
+				AND delivery_state = '배송대기중'
+			</when>
+			<when test='searchState == "inDelivery"'>
+				AND delivery_state = '배송중'
+			</when>
+			<when test='searchState == "delivered"'>
+				AND delivery_state = '배송완료'
+			</when>
+			<otherwise></otherwise>
+		</choose>
+		GROUP BY os.merchant_uid ORDER BY os.order_day DESC LIMIT #{startRowIndex}, #{rowCountPerPage};
+	</select>
+	
+	<!-- 취소, 교환, 환불 신청 시 신청폼에 보내줄 상세주문 정보 -->
+	<select id="selectUserWithdrawalApplyDTO" resultType="com.brickfarm.dto.user.psj.UserWithdrawalApplyDTO">
+	SELECT
+	od.detailed_order_no, od.product_code, od.product_price, 
+	od.discounted_price, od.quantity, od.payment_state,
+	p.product_name, p.product_main_image,
+	os.bank_brand, os.refund_account ,os.merchant_uid,
+	os.recipient_address, os.recipient_zip_code,
+	os.recipient_phone, os.recipient,
+	pay.post_money, pay.point_pay_money,
+    pay.total_pay_money, pay.total_discounted_price
+	FROM ordersheet AS os
+	LEFT JOIN payment AS pay 
+    ON os.merchant_uid = pay.merchant_uid
+	LEFT JOIN detailed_order AS od
+	ON os.merchant_uid = od.merchant_uid
+	LEFT JOIN product AS p 
+	ON od.product_code = p.product_code
+	WHERE od.detailed_order_no = #{detailed_order_no};
+	</select>
+
+	
+	
+	
+	<!-- 취소, 반품, 교환 물품 목록 조회 -->
+	<select id="selectOrderWithdrawalList" resultType="com.brickfarm.dto.user.psj.UserOrderWithdrawalListDTO">
+		SELECT
+		od.detailed_order_no,
+		od.product_price,
+		od.quantity,
+		od.payment_state,
+		od.complete_date AS order_detailed_complete_date,
+		od.discounted_price,
+		p.product_name,
+		p.product_main_image,
+		ex.exchange_no,
+		ex.application_date AS exchange_application_date,
+		ex.check_date AS exchange_check_date,
+		ex.process_date AS exchange_process_date,
+		ex.complete_date AS exchange_complete_date,
+		ex.state AS exchange_state,
+		cancellation_return_no,
+		cancel.state AS cancel_state,
+		cancel.application_date AS cancel_application_date,
+		cancel.check_date AS cancel_check_date,
+		cancel.complete_date AS cancel_complete_date
+		FROM
+		ordersheet os 
+		LEFT JOIN detailed_order od ON
+		os.merchant_uid = od.merchant_uid
+		LEFT JOIN product p ON 
+		od.product_code = p.product_code
+		LEFT JOIN exchange ex ON
+		od.detailed_order_no = ex.detailed_order_no
+		LEFT JOIN cancellation_return cancel ON 
+		od.detailed_order_no = cancel.detailed_order_no
+		WHERE os.member_no = #{member_no}
+		<choose>
+			<when test='searchState == "cancel"'>
+				AND od.payment_state = '취소'
+			</when>
+			<when test='searchState == "exchange"'>
+				AND od.payment_state = '교환'
+			</when>
+			<when test='searchState == "return"'>
+				AND od.payment_state = '반품'
+			</when>
+			<otherwise>
+				AND od.payment_state in('취소', '교환', '반품')
+			</otherwise>
+		</choose>
+		LIMIT #{startRowIndex}, #{rowCountPerPage};
+	</select>
+	
+	<!-- 취소, 반품, 교환 물품 상세 조회 -->
+	<select id="selectOrderWithdrawal" resultType="com.brickfarm.dto.user.psj.UserOrderWithdrawalDTO">
+		SELECT
+		os.merchant_uid, 
+		os.order_day, 
+		os.recipient,
+		os.recipient_address,
+		os.recipient_zip_code,
+		os.recipient_phone,
+		os.bank_brand,
+		os.refund_account,
+		od.detailed_order_no,
+		od.product_price,
+		od.discounted_price,
+		od.quantity,
+		od.payment_state,
+		od.complete_date AS order_detailed_complete_date,
+		p.product_name,
+		p.product_main_image,
+		ex.exchange_no, 
+		ex.state AS exchange_state,
+		ex.post_number AS exchange_post_number,
+		ex.application_date AS exchange_application_date,
+		ex.check_date AS exchange_check_date,
+		ex.process_date AS exchange_process_date,
+		ex.complete_date AS exchange_complete_date,
+		cancel.cancellation_return_no,
+		cancel.cancel_money AS cancel_cancel_money,
+		cancel.what AS cancel_what,
+		cancel.state AS cancel_state,
+		cancel.add_post_money,
+		cancel.application_date AS cancel_application_date,
+		cancel.check_date AS cancel_check_date,
+		cancel.complete_date AS cancel_complete_date
+		FROM
+		ordersheet os
+		LEFT JOIN detailed_order od ON
+		os.merchant_uid = od.merchant_uid
+		LEFT JOIN product p ON 
+		od.product_code = p.product_code
+		LEFT join exchange ex ON
+		od.detailed_order_no = ex.detailed_order_no
+		LEFT join cancellation_return cancel ON
+		od.detailed_order_no = cancel.detailed_order_no
+		WHERE
+		os.member_no = #{member_no} AND
+		od.detailed_order_no = #{detailed_order_no} AND
+		od.payment_state IN('취소', '교환', '반품');
+	</select>
+	
+	<select id="selectAllOrderListCount" resultType="int">
+		SELECT COUNT(*)
+		FROM ordersheet WHERE member_no = #{member_no};
+	</select>
+
+	<select id="selectAllCancelAndExchangeListCount"
+		resultType="int">
+		SELECT COUNT(*)
+		FROM detailed_order AS od, ordersheet AS os
+		WHERE os.member_no = #{member_no} AND od.merchant_uid = os.merchant_uid
+		AND payment_state in('취소', '교환', '반품');
+	</select>
+	
+	<select id="selectAllCancelAndExchangeListCountByCondition"
+		resultType="int">
+		SELECT COUNT(*)
+		FROM detailed_order AS od, ordersheet AS os WHERE
+		os.member_no = #{member_no} AND od.merchant_uid = os.merchant_uid
+		<choose>
+			<when test="searchState == 'cancel'">
+				AND payment_state = '취소'
+			</when>
+			<when test="searchState == 'exchange'">
+				AND payment_state = '교환'
+			</when>
+			<when test="searchState == 'return'">
+				AND payment_state = '반품'
+			</when>
+			<otherwise>
+				AND payment_state in ('취소','교환','반품')
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectAllOrderListCountByCondition" resultType="int">
+		SELECT COUNT(*) FROM ordersheet WHERE member_no = #{member_no}
+		<choose>
+			<when test='searchState == "paymentPending"'>
+				AND delivery_state = '결제대기'
+			</when>
+			<when test='searchState == "preparingForShipment"'>
+				AND delivery_state = '배송준비중'
+			</when>
+			<when test='searchState == "waitingForShipment"'>
+				AND delivery_state = '배송대기중'
+			</when>
+			<when test='searchState == "inDelivery"'>
+				AND delivery_state = '배송중'
+			</when>
+			<when test='searchState == "delivered"'>
+				AND delivery_state = '배송완료'
+			</when>
+			<otherwise></otherwise>
+		</choose>
+		<choose>
+			<when test='searchPeriod == "5"'>
+				AND order_day BETWEEN DATE_ADD(now(), interval -5 DAY) AND now()
+			</when>
+			<when test='searchPeriod == "15"'>
+				AND order_day BETWEEN DATE_ADD(now(), interval -15 DAY) AND now()
+			</when>
+			<when test='searchPeriod == "30"'>
+				AND order_day BETWEEN DATE_ADD(now(), interval -30 DAY) AND now()
+			</when>
+			<otherwise></otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectCouponListCountByCondition" resultType="int">
+		SELECT COUNT(*) FROM coupon_held AS ch, coupon_policy AS cp WHERE member_no = #{member_no}
+		AND ch.coupon_policy_no = cp.coupon_policy_no
+		<choose>
+			<when test='searchState == "available"'>
+				AND ch.available_coupon = 'Y' 
+			</when>
+			<when test='searchState == "notAvailable"'>
+				AND ch.available_coupon = 'N'
+			</when>
+		</choose>
+		<choose>
+			<when test='searchOrder == "orderByRecent"'>
+				ORDER BY ch.published_date DESC
+			</when>
+			<when test='searchOrder == "orderByDiscountRate"'>
+				ORDER BY cp.discount_rate DESC
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectCouponListCount" resultType="int">
+		SELECT COUNT(*) FROM coupon_held WHERE member_no = #{member_no}
+	</select>	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

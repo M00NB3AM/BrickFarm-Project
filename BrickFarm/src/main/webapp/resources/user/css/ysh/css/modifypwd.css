@@ -1,0 +1,34 @@
+@charset "UTF-8";
+
+.modifypwddiv {
+	display: flex;
+	background-color: white;
+}
+
+.modifypwd {
+    border-top-color: pink !important;
+    border-right-color: aqua !important;
+    border-bottom-color: green !important;
+    border: 5px solid #eed80d;
+    border-radius: 7px;
+    padding: 20px;
+    margin: 100px auto;
+    text-align: center;
+    font-weight: bold;
+}
+
+.modifyh1 {
+	margin: 20px;
+}
+
+.firstinput {
+	margin: 20px 0px 0px 0px
+}
+
+.secondinput {
+	margin: 20px;
+}
+
+.modifybtn {
+	margin-top: 20px;
+}

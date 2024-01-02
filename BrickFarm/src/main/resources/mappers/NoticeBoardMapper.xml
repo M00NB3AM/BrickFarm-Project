@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.NoticeBoardMapper">
+	<!-- ==[송지영]======================================================================================================================================== -->
+   
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]======================================================================================================================================== -->
+   
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]======================================================================================================================================== -->
+   
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]======================================================================================================================================== -->
+   
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]======================================================================================================================================== -->
+   
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]======================================================================================================================================== -->
+   
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]======================================================================================================================================== -->
+	<select id="selectNoticeByPaginationInfo" resultType="UserNotice">
+		SELECT nb.*, notice_category_name FROM notice_board nb, notice_category nc
+		WHERE nb.notice_category_no = nc.notice_category_no
+		AND is_fixed='N'
+		ORDER BY notice_board_no DESC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<select id="selectNoticeByCondition" resultType="UserNotice">
+		SELECT nb.*, notice_category_name FROM notice_board nb, notice_category nc
+		WHERE nb.notice_category_no = nc.notice_category_no
+		<!-- 동적 컬럼명 사용시 ${} 표현으로 사용해야 한다. -->
+		<!-- like 내에 동적 sql문 사용시 ${} 표현으로 사용해야 한다. -->
+		<choose>
+			<when test="searchType.equals('notice_category_no')">
+				AND nb.notice_category_no = #{searchCategory}
+			</when>
+			<otherwise>
+				AND ${searchType} like '%${searchWord}%'
+			</otherwise>
+		</choose>
+		AND is_fixed = 'N'
+		ORDER BY notice_board_no DESC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<select id="selectAllNoticeCount" resultType="int">
+		SELECT COUNT(*) FROM notice_board
+	</select>
+	
+	<select id="selectNoticeCountByCondition" resultType="int">
+		SELECT COUNT(*) FROM notice_board
+		WHERE
+		<choose>
+			<when test="searchType.equals('notice_category_no')">
+				notice_category_no = #{searchCategory}
+			</when>
+			<otherwise>
+				${searchType} like '%${searchWord}%'
+			</otherwise>
+		</choose>
+	</select>
+	
+	<select id="selectFixedNotice" resultType="UserNotice">
+		SELECT nb.*, notice_category_name FROM notice_board nb, notice_category nc
+		WHERE nb.notice_category_no = nc.notice_category_no
+		AND is_fixed='Y'
+		ORDER BY notice_board_no DESC
+	</select>
+	
+	<select id="selectNoticeByNoticeBoardNo" resultType="UserNotice">
+		SELECT nb.*, notice_category_name FROM notice_board nb, notice_category nc
+		WHERE nb.notice_category_no = nc.notice_category_no
+		AND nb.notice_board_no = #{noticeBoardNo} 
+	</select>
+	
+	<select id="selectNoticeByConditionCountInAdmin" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			notice_board nb
+			INNER JOIN notice_category nc
+			ON nb.notice_category_no = nc.notice_category_no
+				INNER JOIN admin a
+				ON nb.admin_no = a.admin_no
+		WHERE
+			nb.is_fixed = #{isFixed}
+			<if test="categoryNo != -1">
+				AND nb.notice_category_no = #{categoryNo}
+			</if>
+			<if test="!searchValue.equals('')">
+				<choose>
+					<when test="searchKey.equals('notice_board_no')">
+						AND ${searchKey} = #{searchValue}
+					</when>
+					<otherwise>
+						AND ${searchKey} LIKE '%${searchValue}%'
+					</otherwise>
+				</choose>
+			</if>
+	</select>
+	
+	<select id="selectNoticeByConditionInAdmin" resultType="AdminNotice">
+		SELECT
+			nb.*,
+			nc.notice_category_name,
+			a.admin_id
+		FROM
+			notice_board nb
+			INNER JOIN notice_category nc
+			ON nb.notice_category_no = nc.notice_category_no
+				INNER JOIN admin a
+				ON nb.admin_no = a.admin_no
+		WHERE
+			nb.is_fixed = #{isFixed}
+			<if test="categoryNo != -1">
+				AND nb.notice_category_no = #{categoryNo}
+			</if>
+			<if test="!searchValue.equals('')">
+				<choose>
+					<when test="searchKey.equals('notice_board_no')">
+						AND ${searchKey} = #{searchValue}
+					</when>
+					<otherwise>
+						AND ${searchKey} LIKE '%${searchValue}%'
+					</otherwise>
+				</choose>
+			</if>
+		ORDER BY nb.notice_board_no DESC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<select id="selectNoticeByNoticeBoardNoInAdmin" resultType="AdminNotice">
+		SELECT
+			nb.*,
+			nc.notice_category_name,
+			a.admin_id
+		FROM
+			notice_board nb
+			INNER JOIN notice_category nc
+			ON nb.notice_category_no = nc.notice_category_no
+				INNER JOIN admin a
+				ON nb.admin_no = a.admin_no
+		WHERE
+			nb.notice_board_no = #{noticeBoardNo}
+	</select>
+	
+	<insert id="insertNotice">
+		INSERT INTO notice_board(
+			notice_category_no,
+			admin_no,
+			title,
+			content
+		)
+		VALUES(
+			#{notice_category_no},
+			#{admin_no},
+			#{title},
+			#{content}
+		)
+	</insert>
+	
+	<delete id="deleteNoticeByNoticeBoardNo">
+		DELETE FROM notice_board
+		WHERE notice_board_no = #{noticeBoardNo}
+	</delete>
+	
+	<update id="updateNotice">
+		UPDATE notice_board
+		SET notice_category_no = #{notice_category_no},
+			title = #{title},
+			content = #{content}, 
+			updated_date = NOW()
+		WHERE notice_board_no = #{notice_board_no}	
+	</update>
+	
+	<update id="updateNoticeIsFixed">
+		UPDATE notice_board
+		SET is_fixed = #{isFixed}
+		WHERE notice_board_no IN
+		<foreach collection="noticeBoardNoList" item="noticeBoardNo" index="index" separator="," open="(" close=")">
+			#{noticeBoardNo}
+		</foreach>
+	</update>
+	<!-- ================================================================================================================================================== -->
+</mapper>

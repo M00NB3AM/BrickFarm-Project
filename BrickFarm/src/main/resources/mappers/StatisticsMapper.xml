@@ -1,0 +1,2773 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+  
+<mapper namespace="com.brickfarm.mappers.StatisticsMapper">
+	<!-- === index 대시보드 ================================================================================================================= -->
+	<!-- * n일간 구매확정, 교환된 상세주문들의 총판매액 (배송비, 포인트 제외) -->
+	<select id="selectTotalSalesAmountByPeriod" resultType="int">
+		SELECT
+			SUM(discounted_price * quantity) AS 'total_sales_amount'
+		FROM
+			detailed_order
+		WHERE
+			payment_state IN ('구매확정', '교환')
+			AND DATE(complete_date) <![CDATA[<=]]> CURDATE()
+			AND DATE(complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL #{period} DAY
+	</select>
+	
+	<!-- * n일간 취소/반품확정 된 상세주문들의 총반환액 (배송비, 포인트 제외) -->
+	<select id="selectTotalReturnAmountByPeriod" resultType="int">
+		SELECT
+			SUM(cancel_money) AS 'total_return_amount'
+		FROM
+			cancellation_return
+		WHERE
+			state = '완료'
+			AND DATE(complete_date) <![CDATA[<=]]> CURDATE()
+			AND DATE(complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL #{period} DAY
+	</select>
+	
+	<!-- n일간 구매확정, 교환, 취소/반품확정 된 상세주문들의 주문번호로 기록된 배송비, 포인트 합 -->
+	<select id="selectPostMoneyAndUsagePointByPeriod" resultType="AdminTotalSalesStatByPeriod">
+		SELECT
+			SUM(p.post_money) AS 'total_post_money',
+			SUM(usage_amount.total_usage_amount) AS 'total_usage_amount'
+		FROM
+			(
+				(
+					SELECT
+						DISTINCT merchant_uid
+					FROM
+						detailed_order
+					WHERE
+						payment_state IN ('구매확정', '교환')
+						AND DATE(complete_date) <![CDATA[<=]]> CURDATE()
+						AND DATE(complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL #{period} DAY
+					GROUP BY merchant_uid
+				)
+				UNION
+				(
+					SELECT
+						DISTINCT deo.merchant_uid
+					FROM
+						cancellation_return cr
+						INNER JOIN detailed_order deo
+						ON cr.detailed_order_no = deo.detailed_order_no
+					WHERE
+						cr.state = '완료'
+						AND DATE(cr.complete_date) <![CDATA[<=]]> CURDATE()
+						AND DATE(cr.complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL #{period} DAY
+					GROUP BY deo.merchant_uid
+				)
+			) uids
+			INNER JOIN payment p
+			ON uids.merchant_uid = p.merchant_uid
+				LEFT OUTER JOIN
+				(
+					SELECT
+						merchant_uid,
+						SUM(usage_amount) AS 'total_usage_amount'
+					FROM
+						points_usage_log
+					WHERE
+						DATE(usage_date) <![CDATA[<=]]> CURDATE()
+						AND DATE(usage_date) <![CDATA[>=]]> CURDATE() - INTERVAL #{period} DAY
+					GROUP BY merchant_uid
+				) usage_amount
+				ON uids.merchant_uid = usage_amount.merchant_uid
+	</select>
+
+	<!-- 7일간 신규 회원 가입 수, 탈퇴 회원 수, 포인트 적립 현황 -->
+	<select id="selectMemberAndPointsAccrualInfoBy7Days" resultType="AdminMemberAndPointsAccrualInfoBy7Days">
+		SELECT
+			dates.dates,
+			IFNULL(regist.regist_count, 0) AS 'regist_count',
+			IFNULL(withdraw.withdraw_count, 0) AS 'withdraw_count',
+			IFNULL(accrual.accrual_log_amount, 0) AS 'total_accrual_log_amount'
+		FROM
+			(
+				(
+					SELECT
+						DATE(member_regist_date) AS 'dates'
+					FROM member
+					WHERE
+						DATE(member_regist_date) <![CDATA[<=]]> CURDATE()
+						AND DATE(member_regist_date) <![CDATA[>=]]> CURDATE() - INTERVAL 6 DAY
+					GROUP BY DATE(member_regist_date)
+				)
+				UNION
+				(
+					SELECT
+						DATE(withdraw_date) AS 'dates'
+					FROM withdraw_member
+					WHERE
+						DATE(withdraw_date) <![CDATA[<=]]> CURDATE()
+						AND DATE(withdraw_date) <![CDATA[>=]]> CURDATE() - INTERVAL 6 DAY
+					GROUP BY DATE(withdraw_date)
+				)
+				UNION
+				(
+					SELECT
+						DATE(accrual_date) AS 'dates'
+					FROM points_accrual_log
+					WHERE
+						DATE(accrual_date) <![CDATA[<=]]> CURDATE()
+						AND DATE(accrual_date) <![CDATA[>=]]> CURDATE() - INTERVAL 6 DAY
+					GROUP BY DATE(accrual_date)
+				)
+			) dates
+			LEFT OUTER JOIN
+			(
+				SELECT
+					DATE(member_regist_date) AS 'regist_date',
+					COUNT(*) AS 'regist_count'
+				FROM member
+				WHERE
+					DATE(member_regist_date) <![CDATA[<=]]> CURDATE()
+					AND DATE(member_regist_date) <![CDATA[>=]]> CURDATE() - INTERVAL 6 DAY
+				GROUP BY DATE(member_regist_date)
+			) regist
+			ON dates.dates = regist.regist_date
+				LEFT OUTER JOIN
+				(
+					SELECT
+						DATE(withdraw_date) AS 'withdraw_date',
+						COUNT(*) AS 'withdraw_count'
+					FROM withdraw_member
+					WHERE
+						DATE(withdraw_date) <![CDATA[<=]]> CURDATE()
+						AND DATE(withdraw_date) <![CDATA[>=]]> CURDATE() - INTERVAL 6 DAY
+					GROUP BY DATE(withdraw_date)
+				) withdraw
+				ON dates.dates = withdraw.withdraw_date
+					LEFT OUTER JOIN
+					(
+						SELECT
+							DATE(accrual_date) AS 'accrual_date',
+							SUM(accrual_log_amount) AS 'accrual_log_amount'
+						FROM points_accrual_log
+						WHERE
+							DATE(accrual_date) <![CDATA[<=]]> CURDATE()
+							AND DATE(accrual_date) <![CDATA[>=]]> CURDATE() - INTERVAL 6 DAY
+						GROUP BY DATE(accrual_date)
+					) accrual
+					ON dates.dates = accrual.accrual_date
+		ORDER BY dates.dates
+	</select>
+
+	<!-- === 게시판 대시보드 ================================================================================================================= -->
+	<select id="boardsStat" resultType="AdminBoardsStat">
+		SELECT
+			(SELECT COUNT(*) FROM notice_board) AS 'notice',
+			(SELECT COUNT(*) FROM notice_category) AS 'notice_category',
+			
+			(
+				SELECT COUNT(*)
+				FROM
+					inquiry_board ib
+					LEFT OUTER JOIN (
+						SELECT ref, COUNT(*) AS 'tree_count'
+						FROM inquiry_board
+						GROUP BY ref
+					) tree
+					ON ib.ref = tree.ref
+				WHERE
+					DATE(created_date) = CURDATE()
+					AND ib.admin_no IS NULL
+					AND ib.is_delete = 'N'
+					AND tree.tree_count = 1
+			) AS 'today_unanswered_inquiry',
+			(
+				SELECT COUNT(*)
+				FROM
+					inquiry_board ib
+					LEFT OUTER JOIN (
+						SELECT ref, COUNT(*) AS 'tree_count'
+						FROM inquiry_board
+						GROUP BY ref
+					) tree
+					ON ib.ref = tree.ref
+				WHERE
+					ib.admin_no IS NULL
+					AND ib.is_delete = 'N'
+					AND tree.tree_count = 1
+			) AS 'unanswered_inquiry',
+			(SELECT COUNT(*) FROM inquiry_board WHERE is_delete = 'N') AS 'inquiry',
+			(SELECT COUNT(*) FROM inquiry_category) AS 'inquiry_category',
+			(SELECT COUNT(*) FROM inquiry_images) AS 'inquiry_images',
+			(SELECT SUM(file_size) FROM inquiry_images) AS 'inquiry_images_file_size',
+			
+			(SELECT COUNT(*) FROM faq_board) AS 'faq',
+			(SELECT COUNT(*) FROM faq_category) AS 'faq_category'
+	</select>
+	
+	<select id="inquiriesGraphData" resultType="AdminInquiriesGraphData">
+		SELECT
+			dates.created_date,
+			IFNULL(all_inauiries.inquiry_count, 0) AS 'inquiry_count',
+			IFNULL(unanswered_inquiries.unanswered_inquiry_count, 0) AS 'unanswered_inquiry_count'
+		FROM
+		(
+			SELECT
+				DATE(created_date) AS 'created_date'
+			FROM
+				inquiry_board ib
+				LEFT OUTER JOIN (
+					SELECT ref, COUNT(*) AS 'tree_count'
+					FROM inquiry_board
+					GROUP BY ref
+				) tree
+				ON ib.ref = tree.ref
+			WHERE
+				ib.admin_no IS NULL
+				AND ib.is_delete = 'N'
+			GROUP BY DATE(created_date)
+		) dates
+		LEFT OUTER JOIN
+		(
+			SELECT
+				DATE(created_date) AS 'created_date',
+				COUNT(inquiry_board_no) AS 'inquiry_count'
+			FROM
+				inquiry_board ib
+				LEFT OUTER JOIN (
+					SELECT ref, COUNT(*) AS 'tree_count'
+					FROM inquiry_board
+					GROUP BY ref
+				) tree
+				ON ib.ref = tree.ref
+			WHERE
+				ib.admin_no IS NULL
+				AND ib.is_delete = 'N'
+			GROUP BY DATE(created_date)
+		) all_inauiries
+		ON dates.created_date = all_inauiries.created_date
+		LEFT OUTER JOIN
+		(
+		SELECT
+			DATE(created_date) AS 'created_date',
+			COUNT(inquiry_board_no) AS 'unanswered_inquiry_count'
+		FROM
+			inquiry_board ib
+			LEFT OUTER JOIN (
+				SELECT ref, COUNT(*) AS 'tree_count'
+				FROM inquiry_board
+				GROUP BY ref
+			) tree
+			ON ib.ref = tree.ref
+		WHERE
+			ib.admin_no IS NULL
+			AND ib.is_delete = 'N'
+			AND tree.tree_count = 1
+		GROUP BY DATE(created_date)
+		) unanswered_inquiries
+		ON dates.created_date = unanswered_inquiries.created_date
+	</select>
+
+	<!-- === 대시보드 ====================================================================================================================== -->
+	<select id="todayTotalNetSales" resultType="AdminDailyTotalNetSales">
+		SELECT
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				) AS daily_net_sales
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(deo.complete_date) = CURDATE()
+		) AS 'daily_net_sales'
+		,
+		(
+			SELECT
+				IFNULL(
+					SUM(cr.cancel_money), 0
+				) AS daily_refund_amount
+			FROM
+				detailed_order deo
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND DATE(deo.complete_date) = CURDATE()
+		) AS 'daily_refund_amount'
+		,
+		(
+			SELECT
+				COUNT(DISTINCT o.merchant_uid) AS daliy_payment_count
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					INNER JOIN payment p
+					ON o.merchant_uid = p.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(p.deposit_time) = CURDATE()
+		) AS 'daliy_payment_count'
+		,
+		(
+			SELECT
+				(SELECT
+					COUNT(*)
+				FROM
+					cancellation_return
+				WHERE
+					state = '완료'
+					AND DATE(complete_Date) = CURDATE())
+				+
+				(SELECT
+					COUNT(*)
+				FROM
+					exchange
+				WHERE
+					state = '완료'
+					AND DATE(complete_Date) = CURDATE())
+		) AS 'daily_cancel_exchange_count'
+		,
+		(		
+			SELECT
+				COUNT(*) AS daily_delivery_start_count
+			FROM
+				ordersheet
+			WHERE
+				delivery_state = '배송대기중'
+				AND DATE(delivery_waiting_date) = CURDATE()
+		) AS 'daily_delivery_waiting_count'
+		,
+		(		
+			SELECT
+				COUNT(*) AS daily_delivery_end_count
+			FROM
+				ordersheet
+			WHERE
+				delivery_state = '배송완료'
+				AND DATE(delivery_waiting_date + INTERVAL 3 DAY) = CURDATE()
+		) AS 'daily_delivery_complete_count'
+	</select>
+	
+	<select id="dailyNetSales" resultType="AdminNetSalesByPeriod">
+		SELECT
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				) / 7
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(deo.complete_date) <![CDATA[<=]]> CURDATE()
+				AND DATE(deo.complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL 6 DAY
+		) AS 'recent_period_average',
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				)
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(deo.complete_date) = CURDATE()
+		) AS 'this_period',
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				)
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(deo.complete_date) = CURDATE() - INTERVAL 1 DAY
+		) AS 'last_period'
+	</select>
+	
+	<select id="weeklyNetSales" resultType="AdminNetSalesByPeriod">
+		SELECT
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				) / 4
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) <![CDATA[<=]]> 4
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) <![CDATA[>]]> 0
+		) AS 'recent_period_average',
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				)
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) = 1
+		) AS 'last_period',
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				)
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) = 0
+		) AS 'this_period'
+	</select>
+	
+	<select id="monthlyNetSales" resultType="AdminNetSalesByPeriod">
+		SELECT
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				) / 3
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[>=]]> DATE_FORMAT(CURDATE() - INTERVAL 3 MONTH, '%Y-%m')
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[<]]> DATE_FORMAT(CURDATE(), '%Y-%m')
+		) AS 'recent_period_average',
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				)
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')
+		) AS 'last_period',
+		(
+			SELECT
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity - 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+					), 0
+				)
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')		
+		) AS 'this_period'
+	</select>
+	
+	<select id="dailySalesCountRank" resultType="AdminDailySalesCountRank">
+		SELECT
+			p.product_code,
+			p.product_name,
+			COUNT(p.product_code) AS 'total_order_count',
+			SUM(deo.quantity) AS 'total_confirmed_quantity'
+		FROM
+			detailed_order deo,
+			ordersheet o,
+			product p
+		WHERE
+			p.product_code = deo.product_code
+			AND deo.merchant_uid = o.merchant_uid
+			AND deo.payment_state = '구매확정'
+			AND DATE(order_day) = CURDATE()
+		GROUP BY deo.product_code
+		ORDER BY
+			total_confirmed_quantity DESC,
+			total_order_count DESC,
+			o.order_day
+		LIMIT 0, 10
+	</select>
+	
+	<select id="dailyCartRank" resultType="AdminDailyCartRank">
+		SELECT
+			p.product_code,
+			p.product_name,
+			COUNT(p.product_code) AS 'total_add_count',
+			SUM(sc.quantity) AS 'total_cart_quantity'
+		FROM
+			shopping_cart sc,
+			product p
+		WHERE sc.product_code = p.product_code
+		GROUP BY sc.product_code
+		ORDER BY
+			total_cart_quantity DESC,
+			total_add_count DESC
+		LIMIT 0, 10;
+	</select>
+	
+	<select id="weeklyCancelCountRank" resultType="AdminWeeklyCancelCountRank">
+		SELECT
+			p.product_code,
+			p.product_name,
+			COUNT(p.product_code) AS 'total_cancel_count',
+			SUM(deo.quantity) AS 'total_cancel_quantity',
+			deo.payment_state,
+			cr.complete_date
+		FROM
+			product p,
+			cancellation_return cr,
+			detailed_order deo
+		WHERE
+			cr.detailed_order_no = deo.detailed_order_no
+			AND deo.product_code = p.product_code
+			AND DATE(cr.complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL DAYOFWEEK(CURDATE()) - 1 DAY
+			AND DATE(cr.complete_date) <![CDATA[<=]]> CURDATE() - INTERVAL DAYOFWEEK(CURDATE()) - 7 DAY
+		GROUP BY
+			deo.product_code,
+			deo.payment_state
+		ORDER BY
+			total_cancel_quantity DESC,
+			total_cancel_count DESC,
+			cr.complete_date,
+			cr.application_date
+		LIMIT 0, 5;
+	</select>
+	
+	<select id="weeklyCancelRatioRank" resultType="AdminWeeklyCancelRatioRank">
+		SELECT
+			deo.product_code,
+			p.product_name,
+			COUNT(*) AS 'total_order_count',
+			(
+				CASE WHEN IFNULL(sales_deo.sales_quantity, 0) = 0 THEN 100
+					  ELSE SUM(deo.quantity) / IFNULL(sales_deo.sales_quantity, 0) * 100
+					  END
+			) AS 'cancel_ratio'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+					LEFT OUTER JOIN (
+						SELECT
+							deo.product_code,
+							SUM(deo.quantity) AS 'sales_quantity'
+						FROM
+							product p
+							INNER JOIN detailed_order deo
+							ON p.product_code = deo.product_code
+						WHERE
+							deo.payment_state = '구매확정'
+						GROUP BY deo.product_code
+					) sales_deo
+					ON p.product_code = sales_deo.product_code
+		WHERE
+			deo.payment_state IN ('취소', '반품')
+			AND cr.state = '완료'
+			AND DATE(cr.complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL DAYOFWEEK(CURDATE()) - 1 DAY
+			AND DATE(cr.complete_date) <![CDATA[<=]]> CURDATE() - INTERVAL DAYOFWEEK(CURDATE()) - 7 DAY
+		GROUP BY deo.product_code
+		ORDER BY cancel_ratio DESC
+		LIMIT 0, 5
+	</select>
+	
+	<select id="weeklySalesRankPerCategory" resultType="AdminSalesRankPerCategory">
+		SELECT
+			pc.product_category_name,
+			COUNT(deo.product_code) AS 'total_order_count',
+			SUM(deo.quantity) AS 'total_confirmed_quantity'
+		FROM
+			product p,
+			product_category pc,
+			detailed_order deo,
+			ordersheet o
+		WHERE
+			p.product_category_no = pc.product_category_no
+			AND p.product_code = deo.product_code
+			AND deo.merchant_uid = o.merchant_uid
+			AND deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> CURDATE() - INTERVAL DAYOFWEEK(CURDATE()) - 1 DAY
+			AND DATE(deo.complete_date) <![CDATA[<=]]> CURDATE() - INTERVAL DAYOFWEEK(CURDATE()) - 7 DAY
+		GROUP BY deo.product_code
+		ORDER BY
+			total_confirmed_quantity DESC,
+			total_order_count DESC,
+			o.order_day
+		LIMIT 0, 5;
+	</select>
+		
+	<select id="preMonthSalesRankPerCategory" resultType="AdminSalesRankPerCategory">
+		SELECT
+			pc.product_category_name,
+			COUNT(deo.product_code) AS 'total_order_count',
+			SUM(deo.quantity) AS 'total_confirmed_quantity'
+		FROM
+			product p,
+			product_category pc,
+			detailed_order deo,
+			ordersheet o
+		WHERE
+			p.product_category_no = pc.product_category_no
+			AND p.product_code = deo.product_code
+			AND deo.merchant_uid = o.merchant_uid
+			AND deo.payment_state = '구매확정'
+			AND DATE_FORMAT(deo.complete_date, '%Y-%m') = DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')
+		GROUP BY deo.product_code
+		ORDER BY
+			total_confirmed_quantity DESC,
+			total_order_count DESC,
+			o.order_day
+		LIMIT 0, 5;
+	</select>
+	
+	
+	<!-- === 매출 분석 ====================================================================================================================== -->	
+	<!-- * 일별 매출 -->
+	<!-- ** 일별 매출 전체 row 수 -->
+	<select id="dailyNetSalesDetailCount" resultType="int">
+		SELECT COUNT(*)
+		FROM
+		(
+			SELECT
+				DATE(deo.complete_date) AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+				AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			GROUP BY DATE(deo.complete_date)
+			UNION
+			SELECT
+				DATE(cr.complete_date) AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+				AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+			GROUP BY DATE(cr.complete_date)
+		) date_set
+	</select>
+	
+	<!-- ** 일별 매출 집계 -->
+	<select id="dailyNetSalesDetail" resultType="AdminDailyNetSales">
+		SELECT *, IFNULL(sum_payment, 0) - IFNULL(sum_refund_amount, 0) AS 'total_net_sales'
+		FROM
+		(
+			SELECT
+				DATE(deo.complete_date) AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+				AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			GROUP BY DATE(deo.complete_date)
+			UNION
+			SELECT
+				DATE(cr.complete_date) AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+				AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+			GROUP BY DATE(cr.complete_date)
+		) date_set
+		LEFT OUTER JOIN
+		(
+			SELECT
+				DATE(deo.complete_date) AS 'confirmed_date',
+				COUNT(distinct o.merchant_uid) AS 'confirmed_order_count',
+				COUNT(deo.product_code) AS 'confirmed_product_count',
+				IFNULL(
+					SUM(
+						deo.product_price * deo.quantity
+					), 0
+				) AS 'sum_product_price',
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity
+					), 0
+				) AS 'sum_discounted_price',
+				IFNULL(
+					SUM(
+						pul.usage_amount
+					), 0
+				) AS 'sum_point_usage_amount',
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity
+						<if test="isCheckedUsePoint == true">
+						- 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+						</if>
+						<!-- 적립금 기준 미포함 시 위의 -case문 제거 -->
+					), 0
+				) AS 'sum_payment'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+				AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			GROUP BY DATE(deo.complete_date)
+		) stat_confirmed
+		ON date_set.complete_date = stat_confirmed.confirmed_date
+		LEFT OUTER JOIN
+		(
+			SELECT
+				DATE(cr.complete_date) AS 'canceled_date',
+				COUNT(distinct o.merchant_uid) AS 'canceled_order_count',
+				COUNT(deo.product_code) AS 'canceled_product_count',
+				IFNULL(
+					SUM(
+						cr.cancel_money
+					), 0
+				) AS 'sum_refund_amount'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					INNER JOIN cancellation_return cr
+					ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+				AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+			GROUP BY DATE(cr.complete_date)
+		) stat_canceled
+		ON date_set.complete_date = stat_canceled.canceled_date
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<!-- * 주별 매출 -->
+	<!-- ** 현재 주차 -->
+	<select id="currentWeekOfYear" resultType="int">
+		SELECT WEEKOFYEAR(CURDATE())
+	</select>
+	
+	<!-- ** 주별 매출 전체 row 수 -->
+	<select id="weeklyNetSalesDetailCount" resultType="int">
+		SELECT COUNT(*)
+		FROM
+		(
+			SELECT
+				WEEKOFYEAR(deo.complete_date) AS 'complete_week'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) <![CDATA[<=]]> #{recentWeek}
+			GROUP BY WEEKOFYEAR(deo.complete_date)
+			UNION
+			SELECT
+				WEEKOFYEAR(cr.complete_date) AS 'complete_week'
+			FROM
+				detailed_order deo
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(cr.complete_date) <![CDATA[<=]]> #{recentWeek}
+			GROUP BY WEEKOFYEAR(cr.complete_date)
+		) date_set
+	</select>
+	
+	<!-- ** 주별 매출 집계 -->
+	<select id="weeklyNetSalesDetail" resultType="AdminWeeklyNetSales">
+		SELECT *, IFNULL(sum_payment, 0) - IFNULL(sum_refund_amount, 0) AS 'total_net_sales'
+		FROM
+		(
+			SELECT
+				WEEKOFYEAR(deo.complete_date) AS 'complete_week'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) <![CDATA[<=]]> #{recentWeek}
+			GROUP BY WEEKOFYEAR(deo.complete_date)
+			UNION
+			SELECT
+				WEEKOFYEAR(cr.complete_date) AS 'complete_week'
+			FROM
+				detailed_order deo
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(cr.complete_date) <![CDATA[<=]]> #{recentWeek}
+			GROUP BY WEEKOFYEAR(cr.complete_date)
+		) date_set
+		LEFT OUTER JOIN
+		(
+			SELECT
+				WEEKOFYEAR(deo.complete_date) AS 'confirmed_week',
+				DATE(deo.complete_date) - INTERVAL DAYOFWEEK(DATE(deo.complete_date)) - 1 DAY AS 'confirmed_start_date',
+				DATE(deo.complete_date) - INTERVAL DAYOFWEEK(DATE(deo.complete_date)) - 7 DAY AS 'confirmed_end_date',
+				COUNT(distinct o.merchant_uid) AS 'order_count',
+				COUNT(deo.product_code) AS 'product_count',
+				IFNULL(
+					SUM(
+						deo.product_price * deo.quantity
+					), 0
+				) AS 'sum_product_price',
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity
+					), 0
+				) AS 'sum_discounted_price',
+				IFNULL(
+					SUM(
+						pul.usage_amount
+					), 0
+				) AS 'sum_point_usage_amount',
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity
+						<if test="isCheckedUsePoint == true">
+						- 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+						</if>
+						<!-- 적립금 기준 미포함 시 위의 -case문 제거 -->
+					), 0
+				) AS 'sum_payment'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) <![CDATA[<=]]> #{recentWeek}
+			GROUP BY WEEKOFYEAR(deo.complete_date)
+		) stat_confirmed
+		ON date_set.complete_week = stat_confirmed.confirmed_week
+		LEFT OUTER JOIN
+		(
+			SELECT
+				WEEKOFYEAR(cr.complete_date) AS 'canceled_week',
+				DATE(cr.complete_date) - INTERVAL DAYOFWEEK(DATE(cr.complete_date)) - 1 DAY AS 'canceled_start_date',
+				DATE(cr.complete_date) - INTERVAL DAYOFWEEK(DATE(cr.complete_date)) - 7 DAY AS 'canceled_end_date',
+				IFNULL(
+					SUM(
+						cr.cancel_money
+					), 0
+				) AS 'sum_refund_amount'
+			FROM
+				detailed_order deo
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(cr.complete_date) <![CDATA[<=]]> #{recentWeek}
+			GROUP BY WEEKOFYEAR(cr.complete_date)
+		) stat_canceled
+		ON date_set.complete_week = stat_canceled.canceled_week
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<!-- * 월별 매출 -->
+	<!-- ** 월별 매출 전체 row 수 -->
+	<select id="monthlyNetSalesDetailCount" resultType="int">
+		SELECT COUNT(*)
+		FROM
+		(
+			SELECT
+				DATE_FORMAT(deo.complete_date, '%Y-%m') AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[>=]]> DATE_FORMAT(#{startDate}, '%Y-%m')
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[<=]]> DATE_FORMAT(#{endDate}, '%Y-%m')
+			GROUP BY DATE_FORMAT(deo.complete_date, '%Y-%m')
+			UNION
+			SELECT
+				DATE_FORMAT(cr.complete_date, '%Y-%m') AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					INNER JOIN cancellation_return cr
+					ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND DATE_FORMAT(cr.complete_date, '%Y-%m') <![CDATA[>=]]> DATE_FORMAT(#{startDate}, '%Y-%m')
+				AND DATE_FORMAT(cr.complete_date, '%Y-%m') <![CDATA[<=]]> DATE_FORMAT(#{endDate}, '%Y-%m')
+			GROUP BY DATE_FORMAT(cr.complete_date, '%Y-%m')
+		) date_set
+	</select>
+	
+	<!-- ** 월별 매출 집계 -->
+	<select id="monthlyNetSalesDetail" resultType="AdminMonthlyNetSales">
+		SELECT *, IFNULL(sum_payment, 0) - IFNULL(sum_refund_amount, 0) AS 'total_net_sales'
+		FROM
+		(
+			SELECT
+				DATE_FORMAT(deo.complete_date, '%Y-%m') AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[>=]]> DATE_FORMAT(#{startDate}, '%Y-%m')
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[<=]]> DATE_FORMAT(#{endDate}, '%Y-%m')
+			GROUP BY DATE_FORMAT(deo.complete_date, '%Y-%m')
+			UNION
+			SELECT
+				DATE_FORMAT(cr.complete_date, '%Y-%m') AS 'complete_date'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					INNER JOIN cancellation_return cr
+					ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND DATE_FORMAT(cr.complete_date, '%Y-%m') <![CDATA[>=]]> DATE_FORMAT(#{startDate}, '%Y-%m')
+				AND DATE_FORMAT(cr.complete_date, '%Y-%m') <![CDATA[<=]]> DATE_FORMAT(#{endDate}, '%Y-%m')
+			GROUP BY DATE_FORMAT(cr.complete_date, '%Y-%m')
+		) date_set
+		LEFT OUTER JOIN
+		(
+			SELECT
+				DATE_FORMAT(deo.complete_date, '%Y-%m') AS 'confirmed_date',
+				COUNT(distinct o.merchant_uid) AS 'confirmed_order_count',
+				COUNT(deo.product_code) AS 'confirmed_product_count',
+				IFNULL(
+					SUM(
+						deo.product_price * deo.quantity
+					), 0
+				) AS 'sum_product_price',
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity
+					), 0
+				) AS 'sum_discounted_price',
+				IFNULL(
+					SUM(
+						pul.usage_amount
+					), 0
+				) AS 'sum_point_usage_amount',
+				IFNULL(
+					SUM(
+						deo.discounted_price * deo.quantity
+						<if test="isCheckedUsePoint == true">
+						- 
+						CASE WHEN pul.usage_amount IS NULL THEN 0
+							  ELSE pul.usage_amount
+						END
+						</if>
+						<!-- 적립금 기준 미포함 시 위의 -case문 제거 -->
+					), 0
+				) AS 'sum_payment'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					LEFT OUTER JOIN points_usage_log pul
+					ON o.merchant_uid = pul.merchant_uid
+			WHERE
+				deo.payment_state = '구매확정'
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[>=]]> DATE_FORMAT(#{startDate}, '%Y-%m')
+				AND DATE_FORMAT(deo.complete_date, '%Y-%m') <![CDATA[<=]]> DATE_FORMAT(#{endDate}, '%Y-%m')
+			GROUP BY DATE_FORMAT(deo.complete_date, '%Y-%m')
+		) stat_confirmed
+		ON date_set.complete_date = stat_confirmed.confirmed_date
+		LEFT OUTER JOIN
+		(
+			SELECT
+				DATE_FORMAT(cr.complete_date, '%Y-%m') AS 'canceled_date',
+				COUNT(distinct o.merchant_uid) AS 'canceled_order_count',
+				COUNT(deo.product_code) AS 'canceled_product_count',
+				IFNULL(
+					SUM(
+						cr.cancel_money
+					), 0
+				) AS 'sum_refund_amount'
+			FROM
+				detailed_order deo
+				INNER JOIN ordersheet o
+				ON deo.merchant_uid = o.merchant_uid
+					INNER JOIN cancellation_return cr
+					ON deo.detailed_order_no = cr.detailed_order_no
+			WHERE
+				cr.state = '완료'
+				AND DATE_FORMAT(cr.complete_date, '%Y-%m') <![CDATA[>=]]> DATE_FORMAT(#{startDate}, '%Y-%m')
+				AND DATE_FORMAT(cr.complete_date, '%Y-%m') <![CDATA[<=]]> DATE_FORMAT(#{endDate}, '%Y-%m')
+			GROUP BY DATE_FORMAT(cr.complete_date, '%Y-%m')
+		) stat_canceled
+		ON date_set.complete_date = stat_canceled.canceled_date
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	
+	<!-- === 상품 분석 ====================================================================================================================== -->
+	<!-- * 추천 연령 목록(Select 생성용) -->
+	<select id="selectSortedRecommendAge" resultType="String">
+		SELECT DISTINCT recommend_age
+		FROM product
+		ORDER BY CAST(REGEXP_SUBSTR(recommend_age, '[0-9]+') AS UNSIGNED) ASC
+	</select>
+	
+	<!-- * 판매 상품 순위 -->
+	<!-- ** 판매 수량 TOP 10 -->
+	<select id="totalSalesQuantityTop10" resultType="TotalSalesQuantityTop10">
+		SELECT
+			deo.product_code,
+			p.product_name,
+			COUNT(DISTINCT deo.merchant_uid) AS 'order_count',
+			SUM(deo.quantity) AS 'sales_quantity'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN product_category pc
+				ON p.product_category_no = pc.product_category_no
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+			<if test="recommendAges.size > 0">
+				AND p.recommend_age IN
+				<foreach collection="recommendAges" item="recommendAge" index="index" separator="," open="(" close=")">
+					#{recommendAge}
+				</foreach>
+			</if>
+			<if test="startPartsQuantity != -1 and endPartsQuantity != -1">
+				AND p.parts_quantity <![CDATA[>=]]> #{startPartsQuantity}
+				AND p.parts_quantity <![CDATA[<=]]> #{endPartsQuantity}
+			</if>
+			<if test="startPrice != -1 and endPrice != -1">
+				AND deo.product_price <![CDATA[>=]]> #{startPrice}
+				AND deo.product_price <![CDATA[<=]]> #{endPrice}
+			</if>
+		GROUP BY deo.product_code
+		ORDER BY sales_quantity DESC
+		LIMIT 0, 10
+	</select>
+	
+	<!-- ** 판매 합계 TOP 10 -->
+	<select id="totalSalesAmountTop10" resultType="TotalSalesAmountTop10">
+		SELECT
+			deo.product_code,
+			p.product_name,
+			COUNT(DISTINCT deo.merchant_uid) AS 'order_count',
+			IFNULL(
+				SUM(deo.discounted_price * deo.quantity), 0
+			) AS 'sum_total_price'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN product_category pc
+				ON p.product_category_no = pc.product_category_no
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+			<if test="recommendAges.size > 0">
+				AND p.recommend_age IN
+				<foreach collection="recommendAges" item="recommendAge" index="index" separator="," open="(" close=")">
+					#{recommendAge}
+				</foreach>
+			</if>
+			<if test="startPartsQuantity != -1 and endPartsQuantity != -1">
+				AND p.parts_quantity <![CDATA[>=]]> #{startPartsQuantity}
+				AND p.parts_quantity <![CDATA[<=]]> #{endPartsQuantity}
+			</if>
+			<if test="startPrice != -1 and endPrice != -1">
+				AND deo.product_price <![CDATA[>=]]> #{startPrice}
+				AND deo.product_price <![CDATA[<=]]> #{endPrice}
+			</if>
+		GROUP BY deo.product_code
+		ORDER BY sum_total_price DESC
+		LIMIT 0, 10
+	</select>
+	
+	<!-- ** 판매 상품 순위 내역 개수 -->
+	<select id="totalSalesProductsStatCount" resultType="int">
+		SELECT COUNT(DISTINCT deo.product_code)
+		FROM
+			product p
+			INNER JOIN product_category pc
+			ON p.product_category_no = pc.product_category_no
+				INNER JOIN detailed_order deo
+				ON p.product_code = deo.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM stock
+						GROUP BY product_code
+					) current_stock
+					ON p.product_code = current_stock.product_code
+						LEFT OUTER JOIN (
+							SELECT
+								deo.product_code,
+								SUM(deo.quantity) AS 'return_quantity'
+							FROM
+								product p
+								INNER JOIN detailed_order deo
+								ON p.product_code = deo.product_code
+									INNER JOIN cancellation_return cr
+									ON deo.detailed_order_no = cr.detailed_order_no
+							WHERE
+								deo.payment_state IN ('취소', '반품')
+								AND cr.state = '완료'
+							GROUP BY deo.product_code
+						) r_deo
+						ON p.product_code = r_deo.product_code
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+			<if test="recommendAges.size > 0">
+				AND p.recommend_age IN
+				<foreach collection="recommendAges" item="recommendAge" index="index" separator="," open="(" close=")">
+					#{recommendAge}
+				</foreach>
+			</if>
+			<if test="startPartsQuantity != -1 and endPartsQuantity != -1">
+				AND p.parts_quantity <![CDATA[>=]]> #{startPartsQuantity}
+				AND p.parts_quantity <![CDATA[<=]]> #{endPartsQuantity}
+			</if>
+			<if test="startPrice != -1 and endPrice != -1">
+				AND deo.product_price <![CDATA[>=]]> #{startPrice}
+				AND deo.product_price <![CDATA[<=]]> #{endPrice}
+			</if>
+	</select>
+	
+	<!-- ** 판매 상품 순위 내역(표) -->
+	<select id="totalSalesProductsStat" resultType="TotalSalesProductsStat">
+		SELECT
+			deo.product_code,
+			p.product_name,
+			COUNT(DISTINCT deo.merchant_uid) AS 'order_count',
+			p.product_price,
+			current_stock.current_stock_quantity,
+			IFNULL(r_deo.return_quantity, 0) AS 'return_quantity', 
+			SUM(deo.quantity) AS 'sales_quantity',
+			IFNULL(
+				SUM(deo.discounted_price * deo.quantity), 0
+			) AS 'sum_total_price'
+		FROM
+			product p
+			INNER JOIN product_category pc
+			ON p.product_category_no = pc.product_category_no
+				INNER JOIN detailed_order deo
+				ON p.product_code = deo.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM stock
+						GROUP BY product_code
+					) current_stock
+					ON p.product_code = current_stock.product_code
+						LEFT OUTER JOIN (
+							SELECT
+								deo.product_code,
+								SUM(deo.quantity) AS 'return_quantity'
+							FROM
+								product p
+								INNER JOIN detailed_order deo
+								ON p.product_code = deo.product_code
+									INNER JOIN cancellation_return cr
+									ON deo.detailed_order_no = cr.detailed_order_no
+							WHERE
+								deo.payment_state IN ('취소', '반품')
+								AND cr.state = '완료'
+							GROUP BY deo.product_code
+						) r_deo
+					ON p.product_code = r_deo.product_code
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+			<if test="recommendAges.size > 0">
+				AND p.recommend_age IN
+				<foreach collection="recommendAges" item="recommendAge" index="index" separator="," open="(" close=")">
+					#{recommendAge}
+				</foreach>
+			</if>
+			<if test="startPartsQuantity != -1 and endPartsQuantity != -1">
+				AND p.parts_quantity <![CDATA[>=]]> #{startPartsQuantity}
+				AND p.parts_quantity <![CDATA[<=]]> #{endPartsQuantity}
+			</if>
+			<if test="startPrice != -1 and endPrice != -1">
+				AND deo.product_price <![CDATA[>=]]> #{startPrice}
+				AND deo.product_price <![CDATA[<=]]> #{endPrice}
+			</if>
+		GROUP BY deo.product_code
+		ORDER BY ${orderByColumnName} DESC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<!-- * 판매 분류 순위 -->
+	<!-- ** 판매 수량 TOP 10 -->
+	<select id="totalSalesQuantityByCategoryTop10" resultType="TotalSalesQuantityByCategoryTop10">
+		SELECT
+			(
+				SELECT product_category_no
+				FROM product_category
+				WHERE
+					product_category_no IN (
+					SELECT upper_category_no
+					FROM product_category
+					WHERE product_category_no = pc.upper_category_no
+				)
+			) AS 'large_category_no',
+			(
+				SELECT product_category_name
+				FROM product_category
+				WHERE
+					product_category_no IN (
+					SELECT upper_category_no
+					FROM product_category
+					WHERE product_category_no = pc.upper_category_no
+				)
+			) AS 'large_category_name',
+			pc.upper_category_no AS 'medium_category_no',
+			(
+				SELECT product_category_name
+				FROM product_category
+				WHERE product_category_no = pc.upper_category_no
+			) AS 'medium_category_name',
+			pc.product_category_no AS 'small_category_no',
+			pc.product_category_name AS 'small_category_name',
+			COUNT(DISTINCT deo.merchant_uid) AS 'order_count',
+			SUM(deo.quantity) AS 'sales_quantity'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN product_category pc
+				ON p.product_category_no = pc.product_category_no
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+		GROUP BY p.product_category_no
+		ORDER BY sales_quantity DESC
+		LIMIT 0, 10
+	</select>
+	
+	<!-- ** 판매 합계 TOP 10 -->
+	<select id="totalSalesAmountByCategoryTop10" resultType="TotalSalesAmountByCategoryTop10">
+		SELECT
+			(
+				SELECT product_category_no
+				FROM product_category
+				WHERE
+					product_category_no IN (
+					SELECT upper_category_no
+					FROM product_category
+					WHERE product_category_no = pc.upper_category_no
+				)
+			) AS 'large_category_no',
+			(
+				SELECT product_category_name
+				FROM product_category
+				WHERE
+					product_category_no IN (
+					SELECT upper_category_no
+					FROM product_category
+					WHERE product_category_no = pc.upper_category_no
+				)
+			) AS 'large_category_name',
+			pc.upper_category_no AS 'medium_category_no',
+			(
+				SELECT product_category_name
+				FROM product_category
+				WHERE product_category_no = pc.upper_category_no
+			) AS 'medium_category_name',
+			pc.product_category_no AS 'small_category_no',
+			pc.product_category_name AS 'small_category_name',
+			COUNT(DISTINCT deo.merchant_uid) AS 'order_count',
+			IFNULL(
+				SUM(deo.discounted_price * deo.quantity), 0
+			) AS 'sum_total_price'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN product_category pc
+				ON p.product_category_no = pc.product_category_no
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+		GROUP BY p.product_category_no
+		ORDER BY sum_total_price DESC
+		LIMIT 0, 10
+	</select>
+	
+	<!-- ** 판매 분류 순위 내역 개수 -->
+	<select id="totalSalesProductsByCategoryStatCount" resultType="int">
+		SELECT COUNT(DISTINCT p.product_category_no)
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN product_category pc
+				ON p.product_category_no = pc.product_category_no
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'stock_quantity'
+						FROM stock
+						GROUP BY product_code
+					) st
+					ON p.product_code = st.product_code
+						LEFT OUTER JOIN (
+							SELECT
+								deo.product_code,
+								SUM(deo.quantity) AS 'return_quantity'
+							FROM
+								product p
+								INNER JOIN detailed_order deo
+								ON p.product_code = deo.product_code
+									INNER JOIN cancellation_return cr
+									ON deo.detailed_order_no = cr.detailed_order_no
+							WHERE
+								deo.payment_state IN ('취소', '반품')
+								AND cr.state = '완료'
+							GROUP BY deo.product_code
+						) r_deo
+						ON p.product_code = r_deo.product_code
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+	</select>
+	
+	<!-- ** 판매 분류 순위 내역(표) -->
+	<select id="totalSalesProductsByCategoryStat" resultType="TotalSalesProductsByCategoryStat">
+		SELECT
+			(
+				SELECT product_category_no
+				FROM product_category
+				WHERE
+					product_category_no IN (
+					SELECT upper_category_no
+					FROM product_category
+					WHERE product_category_no = pc.upper_category_no
+				)
+			) AS 'large_category_no',
+			(
+				SELECT product_category_name
+				FROM product_category
+				WHERE
+					product_category_no IN (
+					SELECT upper_category_no
+					FROM product_category
+					WHERE product_category_no = pc.upper_category_no
+				)
+			) AS 'large_category_name',
+			pc.upper_category_no AS 'medium_category_no',
+			(
+				SELECT product_category_name
+				FROM product_category
+				WHERE product_category_no = pc.upper_category_no
+			) AS 'medium_category_name',
+			pc.product_category_no AS 'small_category_no',
+			pc.product_category_name AS 'small_category_name',
+			COUNT(DISTINCT deo.merchant_uid) AS 'order_count',
+			IFNULL(r_deo.return_quantity, 0) AS 'return_quantity',
+			SUM(deo.quantity) AS 'sales_quantity',
+			IFNULL(
+				SUM(deo.discounted_price * deo.quantity), 0
+			) AS 'sum_total_price'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN product_category pc
+				ON p.product_category_no = pc.product_category_no
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'stock_quantity'
+						FROM stock
+						GROUP BY product_code
+					) st
+					ON p.product_code = st.product_code
+						LEFT OUTER JOIN (
+							SELECT
+								deo.product_code,
+								SUM(deo.quantity) AS 'return_quantity'
+							FROM
+								product p
+								INNER JOIN detailed_order deo
+								ON p.product_code = deo.product_code
+									INNER JOIN cancellation_return cr
+									ON deo.detailed_order_no = cr.detailed_order_no
+							WHERE
+								deo.payment_state IN ('취소', '반품')
+								AND cr.state = '완료'
+							GROUP BY deo.product_code
+						) r_deo
+						ON p.product_code = r_deo.product_code
+		WHERE
+			deo.payment_state = '구매확정'
+			AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="productLargeCategoryNo != -1">
+				AND pc.upper_category_no IN (
+					SELECT product_category_no
+					FROM product_category
+					WHERE upper_category_no = #{productLargeCategoryNo}
+				)
+			</if>
+			<if test="productMediumCategoryNo != -1">
+				AND pc.upper_category_no = #{productMediumCategoryNo}
+			</if>
+			<if test="productSmallCategoryNo != -1">
+				AND p.product_category_no = #{productSmallCategoryNo}
+			</if>
+		GROUP BY p.product_category_no
+		ORDER BY ${orderByColumnName} DESC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<!-- * 취소/반품 순위 -->
+	<!-- ** 환불 수량 TOP 10 -->
+	<select id="totalCanceledQuantityTop10" resultType="TotalCanceledQuantityTop10">
+		SELECT
+			deo.product_code,
+			p.product_name,
+			COUNT(DISTINCT deo.merchant_uid) AS 'canceled_order_count',
+			SUM(deo.quantity) AS 'return_quantity'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+		WHERE
+			cr.state = '완료'
+			AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+		GROUP BY deo.product_code
+		ORDER BY return_quantity DESC
+		LIMIT 0, 10
+	</select>
+	
+	<!-- ** 반품 비울 TOP 10 -->
+	<select id="totalCanceledRatioTop10" resultType="TotalCanceledRatioTop10">
+		SELECT
+			deo.product_code,
+			p.product_name,
+			COUNT(DISTINCT deo.merchant_uid) AS 'canceled_order_count',
+			IFNULL(paid_deo.paid_order_count, 0) AS 'paid_order_count',
+			SUM(deo.quantity) AS 'return_quantity',
+			IFNULL(paid_deo.paid_quantity, 0) AS 'paid_quantity',
+			(
+				CASE WHEN IFNULL(paid_deo.paid_quantity, 0) = 0 THEN 100
+					  ELSE SUM(deo.quantity) / IFNULL(paid_deo.paid_quantity, 0) * 100
+					  END
+			) AS 'return_quantity_ratio'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+					LEFT OUTER JOIN (
+						SELECT
+							deo.product_code,
+							COUNT(DISTINCT deo.merchant_uid) AS 'paid_order_count',
+							SUM(deo.quantity) AS 'paid_quantity'
+						FROM
+							product p
+							INNER JOIN detailed_order deo
+							ON p.product_code = deo.product_code
+						WHERE
+							deo.payment_state != '결제대기'
+						GROUP BY deo.product_code
+					) paid_deo
+					ON p.product_code = paid_deo.product_code
+		WHERE
+			cr.state = '완료'
+			AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+		GROUP BY deo.product_code
+		ORDER BY return_quantity_ratio DESC
+		LIMIT 0, 10
+	</select>
+	
+	<select id="totalCanceledProductsStatCount" resultType="int">
+		SELECT
+			COUNT(DISTINCT deo.product_code)
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+					ON p.product_code = current_stock.product_code
+		WHERE
+			cr.state = '완료'
+			AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+	</select>
+	
+	<!-- ** 취소/반품 순위 내역(표) -->
+	<select id="totalCanceledProductsStat" resultType="TotalCanceledProductsStat">
+		SELECT
+			deo.product_code,
+			p.product_name,
+			deo.product_price,
+			deo.discounted_price,
+			current_stock.current_stock_quantity,
+			IFNULL(sales_deo.sales_order_count, 0) AS 'sales_order_count',
+			IFNULL(sales_deo.sales_quantity, 0) AS 'sales_quantity',
+			IFNULL(paid_deo.paid_order_count, 0) AS 'paid_order_count',
+			IFNULL(paid_deo.paid_quantity, 0) AS 'paid_quantity',
+			COUNT(DISTINCT deo.merchant_uid) AS 'canceled_order_count',
+			SUM(deo.quantity) AS 'return_quantity',
+			(
+				CASE WHEN IFNULL(paid_deo.paid_quantity, 0) = 0 THEN 100
+					  ELSE SUM(deo.quantity) / IFNULL(paid_deo.paid_quantity, 0) * 100
+					  END
+			) AS 'return_quantity_ratio',
+			IFNULL(
+				SUM(
+					sales_deo.sum_sales_price * sales_deo.sales_quantity
+				), 0
+			) AS 'sum_sales_amount'
+		FROM
+			product p
+			INNER JOIN detailed_order deo
+			ON p.product_code = deo.product_code
+				INNER JOIN cancellation_return cr
+				ON deo.detailed_order_no = cr.detailed_order_no
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+					ON p.product_code = current_stock.product_code
+						LEFT OUTER JOIN (
+							SELECT
+								deo.product_code,
+								COUNT(DISTINCT deo.merchant_uid) AS 'paid_order_count',
+								SUM(deo.quantity) AS 'paid_quantity'
+							FROM
+								product p
+								INNER JOIN detailed_order deo
+								ON p.product_code = deo.product_code
+							WHERE
+								deo.payment_state != '결제대기'
+							GROUP BY deo.product_code
+						) paid_deo
+						ON p.product_code = paid_deo.product_code
+							LEFT OUTER JOIN (
+								SELECT
+									deo.product_code,
+									COUNT(DISTINCT deo.merchant_uid) AS 'sales_order_count',
+									SUM(deo.discounted_price) AS 'sum_sales_price',
+									SUM(deo.quantity) AS 'sales_quantity'
+								FROM
+									product p
+									INNER JOIN detailed_order deo
+									ON p.product_code = deo.product_code
+								WHERE
+									deo.payment_state = '구매확정'
+								GROUP BY deo.product_code
+							) sales_deo
+							ON p.product_code = sales_deo.product_code
+		WHERE
+			cr.state = '완료'
+			AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+			AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+			<if test="!productCode.equals('')">
+				AND p.product_code LIKE '%${productCode}%'
+			</if>
+			<if test="!productName.equals('')">
+				AND p.product_name LIKE '%${productName}%'
+			</if>
+		GROUP BY deo.product_code
+		ORDER BY ${orderByColumnName} DESC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<!-- * 장바구니 상품 분석 -->
+	<!-- ** 회원수 TOP 10 -->
+	<select id="cartMemberCountTop10" resultType="CartMemberCountTop10">
+		SELECT
+			sc.product_code,
+			p.product_name,
+			COUNT(DISTINCT member_no) AS 'member_count'
+		FROM
+			shopping_cart sc
+			INNER JOIN product p
+			ON sc.product_code = p.product_code
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+		GROUP BY sc.product_code
+		ORDER BY member_count DESC, product_code
+		LIMIT 0, 10
+	</select>
+	
+	<!-- ** 수량 TOP 10 -->
+	<select id="cartRegiCountTop10" resultType="CartRegiCountTop10">
+		SELECT
+			sc.product_code,
+			p.product_name,
+			SUM(sc.quantity) AS 'sum_quantity'
+		FROM
+			shopping_cart sc
+			INNER JOIN product p
+			ON sc.product_code = p.product_code
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+		GROUP BY sc.product_code
+		ORDER BY sum_quantity DESC, product_code
+		LIMIT 0, 10
+	</select>
+	
+	<!-- ** 장바구니 순위 내역 개수 -->
+	<select id="cartStatCount" resultType="int">
+		SELECT
+			COUNT(DISTINCT sc.product_code)
+		FROM
+			shopping_cart sc
+			INNER JOIN product p
+			ON sc.product_code = p.product_code
+				LEFT OUTER JOIN (
+					SELECT product_code, COUNT(*) AS 'today_payment_count'
+					FROM detailed_order deo, ordersheet o
+					WHERE
+						deo.merchant_uid = o.merchant_uid
+						AND DATE(order_day) = CURDATE()
+						AND deo.payment_state IN ('결제완료', '구매확정')
+					GROUP BY deo.product_code
+				) today_payment
+				ON sc.product_code = today_payment.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+					ON sc.product_code = current_stock.product_code
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+	</select>
+	
+	<!-- ** 장바구니 순위 내역(표) -->
+	<select id="cartStat" resultType="CartStat">
+		SELECT
+			sc.product_code,
+			p.product_name,
+			p.product_price,
+			SUM(sc.quantity) AS 'sum_cart_quantity',
+			IFNULL(today_payment.today_payment_count, 0) AS 'today_payment_count',
+			current_stock.current_stock_quantity,
+			COUNT(DISTINCT member_no) AS 'regi_member_count'
+		FROM
+			shopping_cart sc
+			INNER JOIN product p
+			ON sc.product_code = p.product_code
+				LEFT OUTER JOIN (
+					SELECT product_code, COUNT(*) AS 'today_payment_count'
+					FROM detailed_order deo, ordersheet o
+					WHERE
+						deo.merchant_uid = o.merchant_uid
+						AND deo.payment_state IN ('결제완료', '구매확정')
+					GROUP BY deo.product_code
+				) today_payment
+				ON sc.product_code = today_payment.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+					ON sc.product_code = current_stock.product_code
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+		GROUP BY sc.product_code
+		<!-- ORDER BY regi_member_count DESC, product_code -->
+		ORDER BY ${orderByColumnName} DESC, product_code
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<!-- * 장바구니 상세 내역 -->
+	<!-- * 장바구니 상세 내역 개수 -->
+	<select id="totalCartDetailStatCount" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			shopping_cart sc
+			INNER JOIN member m
+			ON sc.member_no = m.member_no
+				INNER JOIN product p
+				ON sc.product_code = p.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+					ON sc.product_code = current_stock.product_code
+		<if test="!memberId.equals('')">
+			WHERE m.member_id LIKE '%${memberId}%' OR SUBSTRING_INDEX(m.email, '@', 1) LIKE '%${memberId}%'
+		</if>
+		<if test="!memberName.equals('')">
+			WHERE m.member_name LIKE '%${memberName}%'
+		</if>
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+	</select>
+	
+	<!-- * 장바구니 상세 내역(표) -->
+	<select id="totalCartDetailStat" resultType="TotalCartDetailStat">
+		SELECT
+			(
+				CASE WHEN m.member_id IS NULL THEN m.email
+				     ELSE m.member_id
+				     END
+			) AS 'member_id',
+			m.member_name,
+			p.product_code,
+			p.product_name,
+			p.product_price,
+			sc.quantity,
+			current_stock.current_stock_quantity
+		FROM
+			shopping_cart sc
+			INNER JOIN member m
+			ON sc.member_no = m.member_no
+				INNER JOIN product p
+				ON sc.product_code = p.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+					ON sc.product_code = current_stock.product_code
+		<if test="!memberId.equals('')">
+			WHERE m.member_id LIKE '%${memberId}%' OR SUBSTRING_INDEX(m.email, '@', 1) LIKE '%${memberId}%'
+		</if>
+		<if test="!memberName.equals('')">
+			WHERE m.member_name LIKE '%${memberName}%'
+		</if>
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+		ORDER BY ${orderByColumnName} DESC, product_code
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<!-- * 관심 상품 분석 -->
+	<!-- ** 회원수 TOP 10 -->
+	<select id="wishListMemberCountTop10" resultType="WishListMemberCountTop10">
+		SELECT
+			pwl.product_code,
+			p.product_name,
+			COUNT(DISTINCT m.member_no) AS 'regi_member_count'
+		FROM
+			product_wish_list pwl
+			INNER JOIN member m
+			ON pwl.member_no = m.member_no
+				INNER JOIN product p
+				ON pwl.product_code = p.product_code
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+		GROUP BY pwl.product_code
+		ORDER BY regi_member_count DESC, pwl.product_code
+		LIMIT 0, 10;
+	</select>
+	
+	<!-- ** 결제수량 TOP 10 -->
+	<select id="wishListConfirmedCountTop10" resultType="WishListConfirmedCountTop10">
+		SELECT
+			pwl.product_code,
+			p.product_name,
+			IFNULL(paid_deo.payment_quantity, 0) AS 'payment_quantity'
+		FROM
+			product_wish_list pwl
+			INNER JOIN member m
+			ON pwl.member_no = m.member_no
+				INNER JOIN product p
+				ON pwl.product_code = p.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+						LEFT OUTER JOIN (
+							SELECT
+								product_code,
+								SUM(quantity) AS 'payment_quantity'
+							FROM detailed_order
+							WHERE
+								payment_state IN ('결제완료', '교환', '구매확정')
+								AND DATE(complete_date) <![CDATA[>=]]> #{startDate}
+								AND DATE(complete_date) <![CDATA[<=]]> #{endDate}
+							GROUP BY product_code
+						) paid_deo
+						ON p.product_code = paid_deo.product_code
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+		GROUP BY pwl.product_code
+		ORDER BY payment_quantity DESC, COUNT(DISTINCT m.member_no) DESC, pwl.product_code
+		LIMIT 0, 10;
+	</select>
+	
+	<!-- ** 관심 상품 순위 내역 개수 -->
+	<select id="wishListStatCount" resultType="int">
+		SELECT
+			COUNT(DISTINCT pwl.product_wish_list_no)
+		FROM
+			product_wish_list pwl
+			INNER JOIN member m
+			ON pwl.member_no = m.member_no
+				INNER JOIN product p
+				ON pwl.product_code = p.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+	</select>
+	
+	<!-- ** 관심 상품 순위 내역(표) -->
+	<select id="wishListStat" resultType="WishListStat">
+		SELECT
+			pwl.product_code,
+			p.product_name,
+			p.product_price,
+			IFNULL(paid_deo.payment_quantity, 0) AS 'payment_quantity',
+			current_stock.current_stock_quantity,
+			COUNT(DISTINCT m.member_no) AS 'regi_member_count'
+		FROM
+			product_wish_list pwl
+			INNER JOIN member m
+			ON pwl.member_no = m.member_no
+				INNER JOIN product p
+				ON pwl.product_code = p.product_code
+					INNER JOIN (
+						SELECT
+							product_code,
+							SUM(stock_quantity) AS 'current_stock_quantity'
+						FROM
+							stock
+						GROUP BY product_code
+					) current_stock
+						LEFT OUTER JOIN (
+							SELECT
+								product_code,
+								SUM(quantity) AS 'payment_quantity'
+							FROM detailed_order
+							WHERE
+								payment_state IN ('결제완료', '교환', '구매확정')
+								AND DATE(complete_date) <![CDATA[>=]]> #{startDate}
+								AND DATE(complete_date) <![CDATA[<=]]> #{endDate}
+							GROUP BY product_code
+						) paid_deo
+						ON p.product_code = paid_deo.product_code
+		<if test="!productCode.equals('')">
+			WHERE p.product_code LIKE '%${productCode}%'
+		</if>
+		<if test="!productName.equals('')">
+			WHERE p.product_name LIKE '%${productName}%'
+		</if>
+		GROUP BY pwl.product_code
+		ORDER BY ${orderByColumnName} DESC, product_code
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	
+	<!-- === 고객 분석 ====================================================================================================================== -->
+	<!-- * 요일별 분석 -->
+	<!-- ** 요일별 분석 내역(포) -->
+	<select id="statByDayname" resultType="StatByDayname">
+		SELECT
+			daynames.day,
+			IFNULL(stat_login.login_count, 0) AS 'login_count',
+			IFNULL(stat_regist.regist_count, 0) AS 'regist_count',
+			IFNULL(stat_confirmed.sum_product_quantity, 0) AS 'confirmed_product_quantity',
+			IFNULL(stat_confirmed.sum_discounted_price, 0) AS 'total_confirmed_price',
+			IFNULL(stat_canceled.canceled_product_quantity, 0) AS 'canceled_product_quantity',
+			IFNULL(stat_canceled.sum_cancel_money, 0) AS 'total_canceled_price'
+		FROM
+			daynames
+			LEFT OUTER JOIN
+			(
+				SELECT
+					DAYNAME(login_date) AS 'day',
+					COUNT(member_no) AS 'login_count'
+				FROM
+					login_log
+				WHERE WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(login_date) <![CDATA[<=]]> #{recentWeek}
+				GROUP BY DAYNAME(login_date)
+			) stat_login
+			ON daynames.day = stat_login.day
+			LEFT OUTER JOIN
+			(
+				SELECT
+					daynames.day,
+					IFNULL(member_regist.regist_count, 0) + IFNULL(withdraw_member_regist.regist_count, 0) AS 'regist_count'
+				FROM
+					daynames
+					LEFT OUTER JOIN
+					(
+						SELECT
+							DAYNAME(member_regist_date) AS 'day',
+							COUNT(member_no) AS 'regist_count'
+						FROM member
+						WHERE WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(member_regist_date) <![CDATA[<=]]> #{recentWeek}
+						GROUP BY DAYNAME(member_regist_date)
+					) member_regist
+					ON daynames.`day` = member_regist.`day`
+					LEFT OUTER JOIN
+					(
+						SELECT
+							DAYNAME(member_regist_date) AS 'day',
+							COUNT(withdraw_member_no) AS 'regist_count'
+						FROM withdraw_member
+						WHERE WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(member_regist_date) <![CDATA[<=]]> #{recentWeek}
+						GROUP BY DAYNAME(member_regist_date)
+					) withdraw_member_regist
+					ON daynames.`day` = withdraw_member_regist.`day`
+			) stat_regist
+			ON daynames.day = stat_regist.day
+			LEFT OUTER JOIN
+			(
+				SELECT
+					DAYNAME(deo.complete_date) AS 'day',
+					SUM(deo.quantity) AS 'sum_product_quantity',
+					SUM(deo.discounted_price * deo.quantity) AS 'sum_discounted_price'
+				FROM
+					product p
+					INNER JOIN detailed_order deo
+					ON p.product_code = deo.product_code
+				WHERE
+					deo.payment_state = '구매확정'
+					AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(deo.complete_date) <![CDATA[<=]]> #{recentWeek}
+				GROUP BY DAYNAME(deo.complete_date)
+			) stat_confirmed
+			ON daynames.day = stat_confirmed.day
+			LEFT OUTER JOIN
+			(
+				SELECT
+					DAYNAME(cr.complete_date) AS 'day',
+					SUM(deo.quantity) AS 'canceled_product_quantity',
+					SUM(cr.cancel_money) AS 'sum_cancel_money'
+				FROM
+					product p
+					INNER JOIN detailed_order deo
+					ON p.product_code = deo.product_code
+						INNER JOIN cancellation_return cr
+						ON deo.detailed_order_no = cr.detailed_order_no
+				WHERE
+					cr.state = '완료'
+					AND WEEKOFYEAR(CURDATE()) - WEEKOFYEAR(cr.complete_date) <![CDATA[<=]]> #{recentWeek}
+				GROUP BY DAYNAME(cr.complete_date)
+			) stat_canceled
+			ON daynames.day = stat_canceled.day
+		ORDER BY daynames.sort_index
+	</select>
+	
+	<!-- * 시간별 분석 -->
+	<!-- ** 시간별 분석 내역(표) -->
+	<select id="statByHour" resultType="StatByHour">
+		SELECT
+			hours.hour,
+			IFNULL(stat_login.login_count, 0) AS 'login_count',
+			IFNULL(stat_regist.regist_count, 0) AS 'regist_count',
+			IFNULL(stat_confirmed.sum_product_quantity, 0) AS 'confirmed_product_quantity',
+			IFNULL(stat_confirmed.sum_discounted_price, 0) AS 'total_confirmed_price',
+			IFNULL(stat_canceled.canceled_product_quantity, 0) AS 'canceled_product_quantity',
+			IFNULL(stat_canceled.sum_cancel_money, 0) AS 'total_canceled_price'
+		FROM
+			hours
+			LEFT OUTER JOIN
+			(
+				SELECT
+					HOUR(login_date) AS 'hour',
+					COUNT(member_no) AS 'login_count'
+				FROM
+					login_log
+				WHERE
+					DATE(login_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(login_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY HOUR(login_date)
+			) stat_login
+			ON hours.hour = stat_login.hour
+			LEFT OUTER JOIN
+			(
+				SELECT
+					hours.hour,
+					IFNULL(member_regist.regist_count, 0) + IFNULL(withdraw_member_regist.regist_count, 0) AS 'regist_count'
+				FROM
+					hours
+					LEFT OUTER JOIN
+					(
+						SELECT
+							HOUR(member_regist_date) AS 'hour',
+							COUNT(member_no) AS 'regist_count'
+						FROM member
+						WHERE
+							DATE(member_regist_date) <![CDATA[>=]]> #{startDate}
+							AND DATE(member_regist_date) <![CDATA[<=]]> #{endDate}
+						GROUP BY HOUR(member_regist_date)
+					) member_regist
+					ON hours.`hour` = member_regist.`hour`
+					LEFT OUTER JOIN
+					(
+						SELECT
+							HOUR(member_regist_date) AS 'hour',
+							COUNT(withdraw_member_no) AS 'regist_count'
+						FROM withdraw_member
+						WHERE
+							DATE(member_regist_date) <![CDATA[>=]]> #{startDate}
+							AND DATE(member_regist_date) <![CDATA[<=]]> #{endDate}
+						GROUP BY HOUR(member_regist_date)
+					) withdraw_member_regist
+					ON hours.`hour` = withdraw_member_regist.`hour`
+			) stat_regist
+			ON hours.hour = stat_regist.hour
+			LEFT OUTER JOIN
+			(
+				SELECT
+					HOUR(deo.complete_date) AS 'hour',
+					SUM(deo.quantity) AS 'sum_product_quantity',
+					SUM(deo.discounted_price * deo.quantity) AS 'sum_discounted_price'
+				FROM
+					product p
+					INNER JOIN detailed_order deo
+					ON p.product_code = deo.product_code
+				WHERE
+					deo.payment_state = '구매확정'
+					AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY HOUR(deo.complete_date)
+			) stat_confirmed
+			ON hours.hour = stat_confirmed.hour
+			LEFT OUTER JOIN
+			(
+				SELECT
+					HOUR(cr.complete_date) AS 'hour',
+					SUM(deo.quantity) AS 'canceled_product_quantity',
+					SUM(cr.cancel_money) AS 'sum_cancel_money'
+				FROM
+					product p
+					INNER JOIN detailed_order deo
+					ON p.product_code = deo.product_code
+						INNER JOIN cancellation_return cr
+						ON deo.detailed_order_no = cr.detailed_order_no
+				WHERE
+					cr.state = '완료'
+					AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY HOUR(cr.complete_date)
+			) stat_canceled
+			ON hours.hour = stat_canceled.hour
+		ORDER BY hours.hour
+	</select>
+	
+	<!-- * 회원 등급별 분석 -->
+	<!-- ** 회원등급별 분석내역 -->
+	<select id="statByMemberGrade" resultType="StatByMemberGrade">
+		SELECT
+			stat_member_grade.member_grade_name,
+			stat_member_grade.member_count,
+			stat_total_decided_order.total_decided_order_count,
+			stat_confirmed.confirmed_product_quantity,
+			stat_confirmed.total_confirmed_price,
+			stat_canceled.canceled_product_quantity,
+			stat_canceled.total_canceled_price
+		FROM
+		(
+			SELECT
+				mgp.member_grade_name,
+				COUNT(DISTINCT m.member_no) + COUNT(DISTINCT wm.withdraw_member_no) AS 'member_count'
+			FROM
+				member_grade_policy mgp
+				LEFT OUTER JOIN member m
+				ON mgp.member_grade_name = m.member_grade_name
+					LEFT OUTER JOIN withdraw_member wm
+					ON mgp.member_grade_name = wm.member_grade_name		
+			GROUP BY mgp.member_grade_name
+		) stat_member_grade
+		INNER JOIN
+		(
+				SELECT
+					mgp.member_grade_name,
+					(
+						IFNULL(member_confirmed.member_confirmed_detailed_order, 0)
+						+
+						IFNULL(withdraw_member_confirmed.withdraw_member_confirmed_detailed_order, 0)
+						+
+						IFNULL(member_canceled.member_canceled_detailed_order, 0)
+						+
+						IFNULL(withdraw_member_canceled.withdraw_member_canceled_detailed_order, 0)
+					) AS 'total_decided_order_count'
+				FROM
+					member_grade_policy mgp
+					LEFT OUTER JOIN
+					(
+						SELECT
+							m.member_grade_name,
+							COUNT(deo.detailed_order_no) AS 'member_confirmed_detailed_order'
+						FROM
+							member m
+							INNER JOIN ordersheet o
+							ON o.member_no = m.member_no
+								INNER JOIN detailed_order deo
+								ON o.merchant_uid = deo.merchant_uid
+						WHERE
+							deo.payment_state = '구매확정'
+							AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+							AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+						GROUP BY m.member_grade_name
+					) member_confirmed
+					ON mgp.member_grade_name = member_confirmed.member_grade_name
+						LEFT OUTER JOIN
+						(
+							SELECT
+								wm.member_grade_name,
+								COUNT(deo.detailed_order_no) AS 'withdraw_member_confirmed_detailed_order'
+							FROM
+								withdraw_member wm
+								INNER JOIN ordersheet o
+								ON o.member_no = wm.withdraw_member_no
+									INNER JOIN detailed_order deo
+									ON o.merchant_uid = deo.merchant_uid
+							WHERE
+								deo.payment_state = '구매확정'
+								AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+								AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+							GROUP BY wm.member_grade_name
+						) withdraw_member_confirmed
+						ON mgp.member_grade_name = withdraw_member_confirmed.member_grade_name
+							LEFT OUTER JOIN
+							(
+								SELECT
+									m.member_grade_name,
+									COUNT(*) AS 'member_canceled_detailed_order'
+								FROM
+									member m
+									INNER JOIN ordersheet o
+									ON o.member_no = m.member_no
+										INNER JOIN detailed_order deo
+										ON o.merchant_uid = deo.merchant_uid
+											INNER JOIN cancellation_return cr
+											ON deo.detailed_order_no = cr.detailed_order_no
+								WHERE
+									cr.state = '완료'
+									AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+									AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+								GROUP BY m.member_grade_name
+							) member_canceled
+							ON mgp.member_grade_name = member_canceled.member_grade_name
+								LEFT OUTER JOIN
+								(
+									SELECT
+										wm.member_grade_name,
+										COUNT(*) AS 'withdraw_member_canceled_detailed_order'
+									FROM
+										withdraw_member wm
+										INNER JOIN ordersheet o
+										ON o.member_no = wm.withdraw_member_no
+											INNER JOIN detailed_order deo
+											ON o.merchant_uid = deo.merchant_uid
+												INNER JOIN cancellation_return cr
+												ON deo.detailed_order_no = cr.detailed_order_no
+									WHERE
+										cr.state = '완료'
+										AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+										AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+									GROUP BY wm.member_grade_name
+								) withdraw_member_canceled
+								ON mgp.member_grade_name = withdraw_member_canceled.member_grade_name
+		) stat_total_decided_order
+		ON stat_member_grade.member_grade_name = stat_total_decided_order.member_grade_name
+		INNER JOIN
+		(
+				SELECT
+					mgp.member_grade_name,
+					(
+						IFNULL(member_confirmed.confirmed_product_quantity, 0)
+						+
+						IFNULL(withdraw_member_confirmed.confirmed_product_quantity, 0)
+					) AS 'confirmed_product_quantity',
+					(
+						IFNULL(member_confirmed.total_confirmed_price, 0)
+						+
+						IFNULL(withdraw_member_confirmed.total_confirmed_price, 0)
+					) AS 'total_confirmed_price'
+				FROM
+					member_grade_policy mgp
+					LEFT OUTER JOIN
+					(
+						SELECT
+							m.member_grade_name,
+							SUM(deo.quantity) AS 'confirmed_product_quantity',
+							SUM(deo.discounted_price * deo.quantity) AS 'total_confirmed_price'
+						FROM
+							member m
+							INNER JOIN ordersheet o
+							ON o.member_no = m.member_no
+								INNER JOIN detailed_order deo
+								ON o.merchant_uid = deo.merchant_uid
+						WHERE
+							deo.payment_state = '구매확정'
+							AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+							AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+						GROUP BY m.member_grade_name
+					) member_confirmed
+					ON mgp.member_grade_name = member_confirmed.member_grade_name
+					LEFT OUTER JOIN
+					(
+						SELECT
+							wm.member_grade_name,
+							SUM(deo.quantity) AS 'confirmed_product_quantity',
+							SUM(deo.discounted_price * deo.quantity) AS 'total_confirmed_price'
+						FROM
+							withdraw_member wm
+							INNER JOIN ordersheet o
+							ON o.member_no = wm.withdraw_member_no
+								INNER JOIN detailed_order deo
+								ON o.merchant_uid = deo.merchant_uid
+						WHERE
+							deo.payment_state = '구매확정'
+							AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+							AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+						GROUP BY wm.member_grade_name
+					) withdraw_member_confirmed
+					ON mgp.member_grade_name = withdraw_member_confirmed.member_grade_name
+		) stat_confirmed
+		ON stat_total_decided_order.member_grade_name = stat_confirmed.member_grade_name
+		INNER JOIN
+		(
+			SELECT
+				mgp.member_grade_name,
+				(
+					IFNULL(member_canceled.canceled_product_quantity, 0)
+					+
+					IFNULL(withdraw_member_canceled.canceled_product_quantity, 0)
+				) AS 'canceled_product_quantity',
+				(
+					IFNULL(member_canceled.total_canceled_price, 0)
+					+
+					IFNULL(withdraw_member_canceled.total_canceled_price, 0)
+				) AS 'total_canceled_price'
+			FROM
+				member_grade_policy mgp
+				LEFT OUTER JOIN
+				(
+					SELECT
+						m.member_grade_name,
+						SUM(deo.quantity) AS 'canceled_product_quantity',
+						SUM(cr.cancel_money) AS 'total_canceled_price'
+					FROM
+						member m
+						INNER JOIN ordersheet o
+						ON o.member_no = m.member_no
+							INNER JOIN detailed_order deo
+							ON o.merchant_uid = deo.merchant_uid
+								INNER JOIN cancellation_return cr
+								ON deo.detailed_order_no = cr.detailed_order_no
+					WHERE
+						cr.state = '완료'
+						AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+						AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+					GROUP BY m.member_grade_name
+				) member_canceled
+				ON mgp.member_grade_name = member_canceled.member_grade_name
+				LEFT OUTER JOIN
+				(
+					SELECT
+						wm.member_grade_name,
+						SUM(deo.quantity) AS 'canceled_product_quantity',
+						SUM(cr.cancel_money) AS 'total_canceled_price'
+					FROM
+						withdraw_member wm
+						INNER JOIN ordersheet o
+						ON o.member_no = wm.member_no
+							INNER JOIN detailed_order deo
+							ON o.merchant_uid = deo.merchant_uid
+								INNER JOIN cancellation_return cr
+								ON deo.detailed_order_no = cr.detailed_order_no
+					WHERE
+						cr.state = '완료'
+						AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+						AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+					GROUP BY wm.member_grade_name
+				) withdraw_member_canceled
+				ON mgp.member_grade_name = withdraw_member_canceled.member_grade_name
+		) stat_canceled
+		ON stat_confirmed.member_grade_name = stat_canceled.member_grade_name
+	</select>
+	
+	<!-- * 배송 지역별 분석 -->	
+	<!-- ** 배송지역별 분석내역(표) -->
+	<select id="statByRecipientAddress" resultType="StatByRecipientAddress">
+		SELECT
+			address_set.district_address,
+			IFNULL(stat_delivery_count.delivery_count, 0) AS 'delivery_count',
+			IFNULL(stat_confirmed.confirmed_product_quantity, 0) AS 'confirmed_product_quantity',
+			IFNULL(stat_confirmed.total_confirmed_price, 0) AS 'total_confirmed_price',
+			IFNULL(stat_canceled.canceled_product_quantity, 0) AS 'canceled_product_quantity',
+			IFNULL(stat_canceled.total_canceled_price, 0) AS 'total_canceled_price'
+		FROM
+			(
+				SELECT
+					(
+						CASE WHEN REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]') = '' THEN '기타'
+							  ELSE REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]')
+							  END
+					) AS 'district_address',
+					recipient_address -- 확인용 나중에 제거
+				FROM ordersheet
+				WHERE
+					DATE(delivery_waiting_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(delivery_waiting_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY REGEXP_SUBSTR(recipient_address, '[가-힣 ]+([군구])')
+			) address_set
+			LEFT OUTER JOIN
+			(
+				SELECT
+					(
+						CASE WHEN REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]') = '' THEN '기타'
+							  ELSE REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]')
+							  END
+					) AS 'district_address',
+					COUNT(*) AS 'delivery_count'
+				FROM ordersheet
+				WHERE
+					delivery_state IN ('배송대기중', '배송중', '배송완료')
+					AND DATE(delivery_waiting_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(delivery_waiting_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY REGEXP_SUBSTR(recipient_address, '[가-힣 ]+([군구])')
+			) stat_delivery_count
+			ON address_set.district_address = stat_delivery_count.district_address
+			LEFT OUTER JOIN
+			(
+				SELECT
+					(
+						CASE WHEN REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]') = '' THEN '기타'
+							  ELSE REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]')
+							  END
+					) AS 'district_address',
+					SUM(deo.quantity) AS 'confirmed_product_quantity',
+					SUM(deo.discounted_price * deo.quantity) AS 'total_confirmed_price'
+				FROM
+					ordersheet o
+					INNER JOIN detailed_order deo
+					ON o.merchant_uid = deo.merchant_uid
+				WHERE
+					deo.payment_state = '구매확정'
+					AND DATE(deo.complete_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(deo.complete_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]')
+			) stat_confirmed
+			ON stat_delivery_count.district_address = stat_confirmed.district_address
+			LEFT OUTER JOIN
+			(
+				SELECT
+					(
+						CASE WHEN REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]') = '' THEN '기타'
+							  ELSE REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]')
+							  END
+					) AS 'district_address',
+					SUM(deo.quantity) AS 'canceled_product_quantity',
+					SUM(cr.cancel_money) AS 'total_canceled_price'
+				FROM
+					ordersheet o
+					INNER JOIN detailed_order deo
+					ON o.merchant_uid = deo.merchant_uid
+						INNER JOIN cancellation_return cr
+						ON deo.detailed_order_no = cr.detailed_order_no
+				WHERE
+					cr.state = '완료'
+					AND DATE(cr.complete_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(cr.complete_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY REGEXP_SUBSTR(recipient_address, '[가-힣 ]+[가-힣][시군구]')
+			) stat_canceled
+			ON stat_confirmed.district_address = stat_canceled.district_address
+	</select>
+	
+	<!-- * 적립금 분석 -->
+	<!-- ** 통계 그래프 겸 적립금 지급/차감 내역(표) -->
+	<select id="totalAccrualStat" resultType="TotalAccrualStat">
+		SELECT 
+			date_set.log_date,
+			IFNULL(stat_points_accrual.total_accrual_count, 0) AS 'total_accrual_count',
+			IFNULL(stat_points_accrual.total_accrual_amount, 0) AS 'total_accrual_amount',
+			IFNULL(stat_points_usage.total_usage_count, 0) AS 'total_usage_count',
+			IFNULL(stat_points_usage.total_usage_amount, 0) AS 'total_usage_amount',
+			IFNULL(stat_points_accrual.total_accrual_amount, 0) - IFNULL(stat_points_usage.total_usage_amount, 0) AS 'balance'
+		FROM
+			(
+				SELECT DATE(accrual_date) AS 'log_date'
+				FROM points_accrual_log
+				WHERE
+					DATE(accrual_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(accrual_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY DATE(accrual_date)
+				UNION
+				SELECT DATE(usage_date) AS 'log_date'
+				FROM points_usage_log
+				WHERE
+					DATE(usage_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(usage_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY DATE(usage_date)
+			) date_set
+			LEFT OUTER JOIN
+			(
+				SELECT
+					DATE(accrual_date) AS 'accrual_date',
+					COUNT(*) AS 'total_accrual_count',
+					SUM(accrual_log_amount) AS 'total_accrual_amount'
+				FROM points_accrual_log
+				WHERE
+					DATE(accrual_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(accrual_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY DATE(accrual_date)
+			) stat_points_accrual
+			ON date_set.log_date = stat_points_accrual.accrual_date
+			LEFT OUTER JOIN
+			(	
+				SELECT
+					DATE(usage_date) AS 'usage_date',
+					COUNT(*) AS 'total_usage_count',
+					SUM(usage_amount) AS 'total_usage_amount'
+				FROM points_usage_log
+				WHERE
+					DATE(usage_date) <![CDATA[>=]]> #{startDate}
+					AND DATE(usage_date) <![CDATA[<=]]> #{endDate}
+				GROUP BY DATE(usage_date)
+			) stat_points_usage
+			ON date_set.log_date = stat_points_usage.usage_date
+	</select>
+</mapper>

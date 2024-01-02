@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.PointsUsageLogMapper">
+   <!-- ==[송지영]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[김미형]======================================================================================================================================== -->
+   <select id="findPointUseLog" resultType="AdminPointLogVO">
+   select p.usage_date, m.member_name, m.member_id, p.merchant_uid, p.usage_amount, p.reason 
+   from points_usage_log p inner join member m on p.member_no = m.member_no
+   <where>
+   		<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="date_start != '' and date_end != ''">
+			and DATE_FORMAT(p.usage_date,'%Y-%m-%d') between #{date_start} and #{date_end}
+		</if>
+   </where>
+   </select>
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[이경민]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[염세환]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[박상진]======================================================================================================================================== -->
+   <select id="selectPointsUsageLog"
+		resultType="com.brickfarm.vo.user.psj.UserPointsUsageLogVO">
+		SELECT *,
+		(SELECT SUM(usage_amount) FROM points_usage_log
+		WHERE member_no = #{member_no}) AS
+		total_usage_amount
+		FROM
+		points_usage_log
+		WHERE member_no = #{member_no} ORDER BY usage_date DESC;
+	</select>
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[송영태]======================================================================================================================================== -->
+   <insert id="insertPointsUsageLog">
+   	INSERT INTO points_usage_log (merchant_uid, member_no, usage_amount, reason) 
+   	VALUES (#{merchant_uid}, #{member_no}, #{usage_amount}, #{reason})
+   </insert>
+   
+   <insert id="insertCancelPoint">
+   	INSERT INTO points_usage_log (merchant_uid, member_no, usage_amount, reason) 
+   	VALUES 
+   		(
+   		(SELECT merchant_uid 
+   		FROM payment 
+   		WHERE imp_uid = #{imp_uid}), 
+   		(SELECT O.member_no 
+   		FROM payment P 
+   			INNER JOIN ordersheet O 
+   				ON P.merchant_uid = O.merchant_uid 
+   		WHERE P.imp_uid = #{imp_uid}), 
+   		-#{change_point_pay_money}, 
+   		"반환"
+   		)
+   </insert>
+   
+   <insert id="insertSchedulerPointLog">
+   	INSERT INTO points_usage_log (merchant_uid, member_no, usage_amount, reason) 
+   	VALUES 
+   		(
+   		#{merchant_uid}, 
+   		#{member_no}, 
+   		-#{point_pay_money}, 
+   		"반환"
+   		)
+   </insert>
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[김용진]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+</mapper>

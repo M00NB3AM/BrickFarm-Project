@@ -1,0 +1,280 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.CancellationReturnMapper">
+	<!-- <select id="식별자" resultType="패키지명.클래스명"> SELECT * FROM test </select> -->
+
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- 상세주문 정보(취소,환불) -->
+	<select id="selectCancelAndReturnOrderInfo"
+		resultType="com.brickfarm.dto.user.psj.UserCancelAndReturnOrderDTO">
+		SELECT
+		od.merchant_uid,
+		od.detailed_order_no, 
+		od.discounted_price, 
+		od.quantity, 
+		od.payment_state, 
+		od.complete_date,
+        od.product_price,
+        od.product_code,
+		p.product_name, 
+		p.product_main_image,
+		pay.post_money,
+		pay.point_pay_money,
+		pay.total_pay_money,
+		pay.total_discounted_price,
+        c.reason AS cancel_reason,
+        c.state AS cancel_state,
+        c.application_date AS cancel_application_date,
+        c.check_date AS cancel_check_date,
+        c.complete_date AS cancel_complete_date,
+        c.add_post_money AS cancel_add_post_money,
+		c.cancel_money,
+        c.what,
+        c.negligence
+        FROM
+        detailed_order od
+        INNER JOIN payment pay ON od.merchant_uid = pay.merchant_uid
+        LEFT JOIN product p
+		ON od.product_code = p.product_code
+		LEFT JOIN cancellation_return c ON
+		od.detailed_order_no = c.detailed_order_no
+        WHERE
+		od.merchant_uid = #{merchant_uid} and
+		od.payment_state IN('취소', '반품'); 
+	</select>
+	
+	<!-- 취소, 반품 신청 -->
+	<insert id="insertCancelAndReturnApply">
+		INSERT INTO cancellation_return (detailed_order_no, reason, cancel_money, what, state, application_date, negligence)
+		VALUES(#{detailed_order_no}, #{reason}, #{cancel_money}, #{what}, '신청', now(), #{negligence})
+	</insert>
+	
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<select id="getCancelData" resultType="AdminCancelDataDTO">
+		SELECT P.imp_uid, 
+			C.cancel_money AS cancel_request_amount, 
+			C.reason, 
+			C.what, 
+			C.negligence,
+			(P.card_pay_money + P.cash_pay_money) AS checksum, 
+			C.cancellation_return_no AS pk_number, 
+			P.total_pay_money,
+			P.post_money,
+			P.point_pay_money,
+			IF(P.cash_pay_money = 0, "카드", "현금") AS pay_method
+		FROM cancellation_return C
+			INNER JOIN detailed_order D 
+				ON C.detailed_order_no = D.detailed_order_no
+			INNER JOIN ordersheet O 
+				ON D.merchant_uid = O.merchant_uid
+			INNER JOIN payment P 
+				ON O.merchant_uid = P.merchant_uid 
+		WHERE C.cancellation_return_no = #{pkNumber}
+	</select>
+	
+	<select id="selectTotalDataCount" resultType="int">
+		SELECT COUNT(*) 
+		FROM cancellation_return C 
+			INNER JOIN detailed_order D 
+				ON C.detailed_order_no = D.detailed_order_no
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			INNER JOIN ordersheet O 
+				ON D.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+			INNER JOIN payment PAY 
+				ON PAY.merchant_uid = O.merchant_uid
+		WHERE C.what = #{what} 
+		<if test ='searchDto.stateSelect !="전체"'>
+        	AND C.state = #{searchDto.stateSelect}
+      	</if>
+		<if test='searchDto.dateSelect !=""'>
+			AND DATE(${searchDto.dateSelect}) BETWEEN #{searchDto.dateStart} AND #{searchDto.dateEnd}
+		</if>
+		<if test='searchDto.wordSelect !="" and searchDto.searchText !=""'>
+			AND ${searchDto.wordSelect} LIKE CONCAT('%',#{searchDto.searchText},'%')
+		</if>
+	</select>
+	
+	<select id="selectCancelReturnList" resultType="AdminCancellationReturnVO">
+		SELECT C.cancellation_return_no, C.reason, FORMAT(C.cancel_money, 0) AS cancel_money, 
+			CASE
+			WHEN ISNULL(PAY.deposit_time)
+			THEN "미결제"
+			WHEN C.application_date <![CDATA[<]]> PAY.deposit_time
+			THEN "미결제"
+			WHEN C.application_date <![CDATA[>]]> PAY.deposit_time
+			THEN "결제"
+			END AS depositYN, 
+			C.state, C.application_date, C.complete_date, FORMAT(C.add_post_money, 0) AS add_post_money,
+			O.merchant_uid, O.order_day, M.member_id, P.product_name, P.product_main_image,
+			D.quantity, FORMAT(D.discounted_price, 0) AS discounted_price, 
+			CASE 
+			WHEN CHAR_LENGTH(M.member_name) <![CDATA[>]]> 2 
+			THEN 
+				CONCAT(
+					SUBSTRING(M.member_name, 1, 1), 
+					LPAD("*", CHAR_LENGTH(M.member_name) - 2, "*"), 
+					SUBSTRING(M.member_name, CHAR_LENGTH(M.member_name), CHAR_LENGTH(M.member_name))
+				)
+				ELSE 
+				CONCAT(
+					SUBSTRING(M.member_name, 1, 1), 
+					LPAD("*", CHAR_LENGTH(M.member_name) - 1, "*")
+				)
+			END AS member_name
+		FROM cancellation_return C 
+			INNER JOIN detailed_order D 
+				ON C.detailed_order_no = D.detailed_order_no
+			INNER JOIN product P 
+				ON D.product_code = P.product_code
+			INNER JOIN ordersheet O 
+				ON D.merchant_uid = O.merchant_uid
+			INNER JOIN member M 
+				ON O.member_no = M.member_no
+			INNER JOIN payment PAY 
+				ON PAY.merchant_uid = O.merchant_uid
+  		WHERE C.what = #{what} 
+      	<if test ='searchDto.stateSelect !="전체"'>
+        	AND C.state = #{searchDto.stateSelect}
+      	</if>
+		<if test='searchDto.dateSelect !=""'>
+			AND DATE(${searchDto.dateSelect}) BETWEEN #{searchDto.dateStart} AND #{searchDto.dateEnd}
+		</if>
+		<if test='searchDto.wordSelect !="" and searchDto.searchText !=""'>
+			AND ${searchDto.wordSelect} LIKE CONCAT('%',#{searchDto.searchText},'%')
+		</if>
+		ORDER BY C.application_date DESC 
+		LIMIT #{pagination.startRowIndex},#{pagination.showDataCountPerPage}
+	</select>
+	
+	<update id="updateCancelReturnByStateCheck">
+		UPDATE cancellation_return 
+		SET state = 
+			CASE
+			<foreach collection="cancelReturnList" item="item" >
+				WHEN cancellation_return_no = #{item.cancellation_return_no} 
+				THEN #{item.state}
+			</foreach>
+			END
+			, check_date = 
+			CASE
+			<foreach collection="cancelReturnList" item="item" >
+				WHEN cancellation_return_no = #{item.cancellation_return_no} 
+				THEN #{item.check_date}
+			</foreach>
+			END
+			, complete_date =  
+			CASE
+			<foreach collection="cancelReturnList" item="item" >
+				WHEN cancellation_return_no = #{item.cancellation_return_no} 
+				THEN #{item.complete_date}
+			</foreach>
+			END
+		WHERE what = #{what}
+			AND cancellation_return_no IN 
+			<foreach collection="cancelReturnList" item="item" open="(" close=")" separator= ",">
+				#{item.cancellation_return_no}
+			</foreach>
+	</update>
+	
+	<update id="updateCancelReturnByStateComplete">
+		UPDATE cancellation_return 
+		SET state = 
+			CASE
+			<foreach collection="cancelReturnList" item="item">
+				WHEN cancellation_return_no = #{item.cancellation_return_no}
+				THEN #{item.state}
+			</foreach>
+			END
+			, complete_date = 
+			CASE
+			<foreach collection="cancelReturnList" item="item">
+				WHEN cancellation_return_no = #{item.cancellation_return_no}
+				THEN #{item.complete_date}
+			</foreach>
+			END
+			, add_post_money = 
+			CASE
+			<foreach collection="cancelReturnList" item="item">
+				WHEN cancellation_return_no = #{item.cancellation_return_no}
+				THEN #{item.add_post_money}
+			</foreach>
+			END
+		WHERE what = #{what}  
+			AND cancellation_return_no IN 
+			<foreach collection="cancelReturnList" item="item" open="(" close=")" separator=",">
+				#{item.cancellation_return_no}
+			</foreach>
+	</update>
+	
+	<delete id="deleteCancelReturnByDetailedOrderNo">
+		DELETE FROM cancellation_return 
+		WHERE detailed_order_no IN 
+		<foreach collection="detailedOrderList" item="item" open="(" close=")" separator=",">
+			#{item.detailed_order_no}
+		</foreach>
+	</delete>
+	
+	<insert id="insertCancelReturnList">
+		INSERT INTO cancellation_return (detailed_order_no, reason, cancel_money, what, negligence) VALUES 
+		<foreach collection="detailedOrderList" item="item" separator=",">
+			(
+			#{item.detailed_order_no},
+			#{item.reason},
+			#{item.cancel_money},
+			#{what},
+			#{item.negligence}
+			)
+		</foreach>
+	</insert>
+	
+	<insert id="insertSchedulerCancel">
+		INSERT INTO cancellation_return (detailed_order_no, reason, cancel_money, what, state, 
+		application_date, check_date, complete_date) 
+		VALUES 
+		<foreach collection="schedulerDataList" item="item" separator=",">
+			(
+			#{item.detailed_order_no},
+			"입금기한만료로 인한 자동취소",
+			(SELECT (discounted_price * quantity) FROM detailed_order WHERE detailed_order_no = #{item.detailed_order_no}),
+			"취소",
+			"완료",
+			#{now},
+			#{now},
+			#{now}
+			)
+		</foreach>
+	</insert>
+	
+	<delete id="deleteSchedulerCancel">
+		DELETE FROM cancellation_return
+		WHERE detailed_order_no IN 
+		<foreach collection="schedulerDataList" item="item" open="(" close=")" separator=",">
+			#{item.detailed_order_no}
+		</foreach>
+	</delete>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

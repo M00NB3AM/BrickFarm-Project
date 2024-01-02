@@ -1,0 +1,800 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.ProductMapper">
+	<!-- ==[송지영]======================================================================================================================================== -->
+	<select id="selectAllProducts" resultType="AdminProduct">
+		select DISTINCT p.*,
+		s.safety_stock_quantity, s.stock_quantity from product p inner
+		join
+		stock s on p.product_code = s.product_code
+		order by
+		product_name asc
+	</select>
+	<select id="selectAllProductsPaging" resultType="AdminProduct">
+		select DISTINCT
+		p.*,
+		s.safety_stock_quantity, s.stock_quantity from product p inner
+		join
+		stock s on p.product_code = s.product_code group by p.product_code
+		order by
+		product_name asc
+		limit #{startRowIndex},
+		#{viewPostCntPerPage}
+	</select>
+	<select id="selectProductDetails" resultType="AdminProduct">
+		select p.*,
+		s.safety_stock_quantity, s.stock_quantity, s.is_auto_order from product p inner
+		join
+		stock s on p.product_code = s.product_code where p.product_code =
+		#{product_code}
+	</select>
+	<select id="selectProductsByEvtNo" resultType="AdminProduct">
+		select p.*,
+		s.safety_stock_quantity, s.stock_quantity from product p inner
+		join
+		stock s on p.product_code = s.product_code where p.event_no =
+		#{event_no}
+	</select>
+	<select id="selectAllProductsByCondition" resultType="AdminProduct">
+		<choose>
+			<when test="product_category_no gt 1">
+				select DISTINCT p.*, s.safety_stock_quantity,
+				s.stock_quantity
+				from
+				product_category pc inner join product p on
+				p.product_category_no =
+				pc.product_category_no inner join stock s on
+				p.product_code =
+				s.product_code
+			</when>
+			<when
+				test="product_category_no.equals(0) or product_category_no.equals(1)">
+				select DISTINCT p.*, s.safety_stock_quantity, s.stock_quantity
+				from
+				product p
+				inner join stock s on p.product_code = s.product_code
+			</when>
+		</choose>
+		<where>
+			<if test="product_category_no lt 5 and product_category_no gt 1">
+				and (upper_category_no = ${product_category_no})
+			</if>
+			<if test="product_category_no gt 4">
+				and (p.product_category_no =
+				${product_category_no})
+			</if>
+			<if test="search_type != 'all' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_code like concat ('%', '${search_word}',
+				'%') or
+				p.product_name like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test="!minimum_price.equals('') and !maximum_price.equals(0)">
+				and (p.product_price between ${minimum_price} and
+				${maximum_price})
+			</if>
+			<if test='is_new == "Y" and all != "Y"'>
+				and (is_new = 'Y')
+			</if>
+			<if test='event_no != 0 and all != "Y"'>
+				and (event_no > 0)
+			</if>
+			<if test='display == "Y" and all != "Y"'>
+				and (display = 'Y')
+			</if>
+			<if test='not_display == "Y" and display == "Y" and all != "Y"'>
+				and (display ='N' or display = 'Y')
+			</if>
+			<if test='not_display == "N" and display != "Y" and all != "Y"'>
+				and (display ='N')
+			</if>
+			<if test="!minimum_stock.equals('') and !maximum_stock.equals(0)">
+				and (s.${stock_search_type} between ${minimum_stock} and
+				${maximum_stock})
+			</if>
+			<if test="!min_date.equals('') and !max_date.equals('')">
+				and (p.product_regist_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		order by
+		product_name asc
+	</select>
+	<select id="selectAllProductsByConditionPaging"
+		resultType="AdminProduct">
+		<choose>
+			<when test="product_category_no gt 1">
+				select DISTINCT p.*, s.safety_stock_quantity,
+				s.stock_quantity
+				from
+				product_category pc inner join product p on
+				p.product_category_no =
+				pc.product_category_no inner join stock s on
+				p.product_code =
+				s.product_code
+			</when>
+			<when
+				test="product_category_no.equals(0) or product_category_no.equals(1)">
+				select p.*, s.safety_stock_quantity, s.stock_quantity from
+				product p
+				inner join stock s on p.product_code = s.product_code
+			</when>
+		</choose>
+		<where>
+			<if test="product_category_no lt 5 and product_category_no gt 1">
+				and (upper_category_no = ${product_category_no})
+			</if>
+			<if test="product_category_no gt 4">
+				and (p.product_category_no =
+				${product_category_no})
+			</if>
+			<if test="search_type != 'all' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_code like concat ('%', '${search_word}',
+				'%') or
+				p.product_name like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test="!minimum_price.equals('') and !maximum_price.equals(0)">
+				and (p.product_price between ${minimum_price} and
+				${maximum_price})
+			</if>
+			<if test='is_new == "Y" and all != "Y"'>
+				and (is_new = 'Y')
+			</if>
+			<if test='event_no != 0 and all != "Y"'>
+				and (event_no > 0)
+			</if>
+			<if test='display == "Y" and all != "Y"'>
+				and (display = 'Y')
+			</if>
+			<if test='not_display == "Y" and display == "Y" and all != "Y"'>
+				and (display ='N' or display = 'Y')
+			</if>
+			<if test='not_display == "N" and display != "Y" and all != "Y"'>
+				and (display ='N')
+			</if>
+			<if test="!minimum_stock.equals('') and !maximum_stock.equals(0)">
+				and (s.${stock_search_type} between ${minimum_stock} and
+				${maximum_stock})
+			</if>
+			<if test="!min_date.equals('') and !max_date.equals('')">
+				and (p.product_regist_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+		order by
+		product_name asc
+		limit #{startRowIndex},
+		#{viewPostCntPerPage}
+	</select>
+	<select id="selectSearchedTotalPostCnt" resultType="int">
+		<choose>
+			<when test="product_category_no gt 1">
+				select DISTINCT count(*) as totalPostCnt
+				from
+				product_category
+				pc inner join product p on
+				p.product_category_no =
+				pc.product_category_no inner join stock s on
+				p.product_code =
+				s.product_code
+			</when>
+			<when
+				test="product_category_no.equals(0) or product_category_no.equals(1)">
+				select count(*) as totalPostCnt from
+				product p
+				inner join stock s
+				on p.product_code = s.product_code
+			</when>
+		</choose>
+		<where>
+			<if test="product_category_no lt 5 and product_category_no gt 1">
+				and (upper_category_no = ${product_category_no})
+			</if>
+			<if test="product_category_no gt 4">
+				and (p.product_category_no =
+				${product_category_no})
+			</if>
+			<if test="search_type != 'all' and search_word != ''">
+				and (p.${search_type} like concat ('%', '${search_word}',
+				'%'))
+			</if>
+			<if test="search_type == 'all' and search_word != ''">
+				and (p.product_code like concat ('%', '${search_word}',
+				'%') or
+				p.product_name like concat ('%', '${search_word}', '%'))
+			</if>
+			<if test="!minimum_price.equals('') and !maximum_price.equals(0)">
+				and (p.product_price between ${minimum_price} and
+				${maximum_price})
+			</if>
+			<if test='is_new == "Y" and all != "Y"'>
+				and (is_new = 'Y')
+			</if>
+			<if test='event_no != 0 and all != "Y"'>
+				and (event_no > 0)
+			</if>
+			<if test='display == "Y" and all != "Y"'>
+				and (display = 'Y')
+			</if>
+			<if test='not_display == "Y" and display == "Y" and all != "Y"'>
+				and (display ='N' or display = 'Y')
+			</if>
+			<if test='not_display == "N" and display != "Y" and all != "Y"'>
+				and (display ='N')
+			</if>
+			<if test="!minimum_stock.equals('') and !maximum_stock.equals(0)">
+				and (s.${stock_search_type} between ${minimum_stock} and
+				${maximum_stock})
+			</if>
+			<if test="!min_date.equals('') and !max_date.equals('')">
+				and (p.product_regist_date between '${min_date}' and
+				'${max_date}')
+			</if>
+		</where>
+	</select>
+	<insert id="insertProduct">
+		insert into product(product_code,
+		product_category_no, product_name, product_price, product_description,
+		parts_quantity, recommend_age, product_main_image,
+		product_short_description, display, is_new, event_no) values
+		(#{product_code},#{product_category_no},
+		#{product_name},
+		#{product_price}, #{product_description},
+		#{parts_quantity},
+		#{recommend_age}, #{product_main_image},
+		#{product_short_description},
+		#{display}, #{is_new}, #{event_no})
+	</insert>
+	<update id="updateProductModify">
+		update product set product_category_no =
+		#{product_category_no}, product_name =
+		#{product_name},product_price =
+		#{product_price},product_description =
+		#{product_description},parts_quantity =
+		#{parts_quantity},recommend_age =
+		#{recommend_age},product_main_image =
+		#{product_main_image},display =
+		#{display},is_new =
+		#{is_new},event_no =
+		#{event_no}
+		where
+		product_code = #{product_code}
+	</update>
+	<update id="updateEventProductsCancel">
+		update product set event_no = 0 where product_code =
+		#{product_code}
+	</update>
+	<update id="updateEventRegist">
+		update product set event_no = (select max(event_no)
+		from event) where product_code = #{product_code}
+	</update>
+	<update id="updateAllEvent">
+		update product set event_no = 0 where event_no =
+		#{event_no}
+	</update>
+	<delete id="deleteProduct">
+		delete from product where product_code =
+		#{product_code}
+	</delete>
+	<update id="updateEvent">
+		update product set event_no = 0 where event_no =
+		#{event_no}
+	</update>
+	<select id="selectTotalPostCnt" resultType="int">
+		select DISTINCT count(*)
+		as
+		totalPostCnt from product
+	</select>
+	<select id="selectAutoOrder" resultType="AdminProduct">
+		select DISTINCT
+		p.product_code,
+		p.product_price,
+		s.safety_stock_quantity,
+		s.stock_quantity from product
+		p inner join
+		stock s on p.product_code =
+		s.product_code where
+		safety_stock_quantity
+		> stock_quantity and
+		is_auto_order = 'Y'
+	</select>
+	<select id="selectProductsCount" resultType="int">
+		select DISTINCT count(*)
+		from
+		product
+	</select>
+	<update id="updateEventScheduler">
+		update product p left join event_log el on
+		p.product_code = el.product_code left join event e on el.event_no =
+		e.event_no set p.event_no = el.event_no where curdate() between
+		DATE(e.event_start) and DATE(e.event_end)
+	</update>
+	<select id="selectProductsByEvtNoFromLog" resultType="AdminProduct">
+		select p.*,
+		s.safety_stock_quantity, s.stock_quantity from stock s inner join
+		product p on s.product_code = p.product_code inner join event_log el
+		on p.product_code = el.product_code where el.event_no =
+		#{event_no}
+	</select>
+	<select id="selectReceivingProductCode" resultType="String">
+		select product_code
+		from receiving where
+		TIMESTAMPDIFF(DAY, Date(receiving_date),
+		CURDATE()) > 3 and
+		is_received =
+		'N';
+	</select>
+	<select id="selectEventToUpdate" resultType="int">
+		select count(*) from product p left join event_log el on p.product_code = el.product_code left join event e on 
+		el.event_no = e.event_no where curdate() between DATE(e.event_start) and DATE(e.event_end) and p.event_no != el.event_no;
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]======================================================================================================================================== -->
+
+	<select id="findDetailOrderProducts"
+		resultType="AdminDetailOrderProductsVO">
+		select p.product_name, p.product_main_image, d.quantity,
+		d.product_price, d.discounted_price,
+		case
+		when c.state is not null then concat(d.payment_state, ' ', c.state)
+		when e.state is not null then concat(d.payment_state, ' ', e.state)
+		else
+		d.payment_state
+		end as state,
+		case
+		when c.complete_date is not null then c.complete_date
+		when e.complete_date
+		is not null then e.complete_date
+		when d.complete_date is not null then
+		d.complete_date
+		else ''
+		end as complete_date
+		from product p
+		inner join detailed_order d
+			on d.product_code = p.product_code
+		left outer join exchange e 
+		   on d.detailed_order_no = e.detailed_order_no
+		left outer join cancellation_return c 
+		   on d.detailed_order_no = c.detailed_order_no
+		where d.merchant_uid = #{value}
+	</select>
+
+	<!-- ==[이경민]======================================================================================================================================== -->
+
+	<select id="selectBestProduct" resultType="UserProductVO">
+		select product.*,
+		sum(detailed_order.quantity) as total_quantity,
+		stock.stock_quantity,
+		event.*,
+		avg(product_review.star_count) as total_star_count, review_count
+		from product
+		join detailed_order on product.product_code =
+		detailed_order.product_code
+		join stock on product.product_code =
+		stock.product_code
+		join event on product.event_no = event.event_no
+		join (select product_code, count(*) as review_count
+			  from product_review
+			  group by product_code)
+		as review_counts ON product.product_code = review_counts.product_code
+		join product_review ON product.product_code = product_review.product_code
+		where payment_state = "구매확정"
+		group by
+		product.product_code
+		order by
+		total_quantity desc limit 8;
+	</select>
+
+	<select id="selectDiscountProduct" resultType="UserProductVO">
+		SELECT product.*,
+    	stock.stock_quantity,
+    	event.*,
+    	IFNULL(AVG(product_review.star_count), 0) AS total_star_count,
+    	IFNULL(review_counts.review_count, 0) AS review_count
+		FROM product
+		JOIN stock ON product.product_code = stock.product_code
+		JOIN event ON product.event_no = event.event_no
+		LEFT JOIN product_review ON product.product_code = product_review.product_code
+		LEFT JOIN (SELECT
+                   product_code,
+                   COUNT(*) AS review_count
+                   FROM product_review
+     			   GROUP BY product_code) AS review_counts ON product.product_code = review_counts.product_code
+		WHERE event.event_no = (SELECT MAX(event_no) FROM event)
+		GROUP BY product.product_code
+		ORDER BY RAND() LIMIT 2;
+	</select>
+
+	<select id="selectNewProduct" resultType="UserProductVO">
+		select product.*, 
+		stock.stock_quantity, 
+		event.*,
+		IFNULL(AVG(product_review.star_count), 0) AS total_star_count,
+    	IFNULL(review_counts.review_count, 0) AS review_count
+		from product
+		join stock on product.product_code = stock.product_code
+		join event on product.event_no = event.event_no
+		LEFT JOIN product_review ON product.product_code = product_review.product_code
+		LEFT JOIN (SELECT
+                   product_code,
+                   COUNT(*) AS review_count
+                   FROM product_review
+     			   GROUP BY product_code) AS review_counts ON product.product_code = review_counts.product_code
+		where is_new = 'Y'
+		GROUP BY product.product_code
+		order by rand() limit 8
+	</select>
+
+	<select id="selectProductAll" parameterType="String"
+		resultType="UserProductVO">
+		select product.*, stock.stock_quantity, event.*,
+		IFNULL(AVG(product_review.star_count), 0) AS total_star_count,
+    	IFNULL(review_counts.review_count, 0) AS review_count
+		from product
+		join stock on product.product_code = stock.product_code
+		join event on product.event_no = event.event_no
+		LEFT JOIN product_review ON product.product_code = product_review.product_code
+		LEFT JOIN (SELECT
+                   product_code,
+                   COUNT(*) AS review_count
+                   FROM product_review
+     			   GROUP BY product_code) AS review_counts ON product.product_code = review_counts.product_code
+		where (product.product_name like '%${searchProduct}%' or product.product_code like'%${searchProduct}%')
+		GROUP BY product.product_code
+		<choose>
+			<when test="sortMethod == 'salesOrderSort'">
+				order by product_code asc
+			</when>
+			<when test="sortMethod == 'lastOrderSort'">
+				order by is_new desc
+			</when>
+			<when test="sortMethod == 'rowPriceSort'">
+				order by product_price asc
+			</when>
+			<when test="sortMethod == 'highPriceSort'">
+				order by product_price desc
+			</when>
+			<otherwise>
+				select product.*, stock.stock_quantity, event.*
+				from
+				product
+				join stock on product.product_code = stock.product_code
+				join
+				event on product.event_no = event.event_no
+				where
+				(product.product_name like '%${searchProduct}%' or
+				product.product_code like'%${searchProduct}%')
+			</otherwise>
+		</choose>
+		limit #{startRowIndex}, #{viewPostCountPerPage}
+	</select>
+
+
+	<select id="selectProductByPrice" resultType="UserProductVO">
+	SELECT product.*, stock.stock_quantity, event.*,
+	IFNULL(review_counts.review_count, 0) AS review_count,
+	IFNULL(AVG(product_review.star_count), 0) AS total_star_count
+	FROM product
+	JOIN stock ON product.product_code = stock.product_code
+	JOIN event ON product.event_no = event.event_no
+	LEFT JOIN product_review ON product.product_code = product_review.product_code
+	LEFT JOIN (SELECT product_code, COUNT(*) AS review_count
+				FROM product_review
+				GROUP BY product_code) AS review_counts ON product.product_code = review_counts.product_code
+	WHERE product_price BETWEEN #{min} AND #{max}
+	GROUP BY product.product_code
+	ORDER BY product_price DESC
+	LIMIT #{startRowIndex}, #{viewPostCountPerPage};
+	</select>
+
+	<select id="selectProductByRating" resultType="UserProductVO">
+		SELECT product.*, stock.stock_quantity, event.*,
+		IFNULL(review_counts.review_count, 0) AS review_count,
+		IFNULL(AVG(product_review.star_count), 0) AS total_star_count
+		FROM product
+		JOIN stock ON product.product_code = stock.product_code
+		JOIN event ON product.event_no = event.event_no
+		LEFT JOIN product_review ON product.product_code = product_review.product_code
+		LEFT JOIN (SELECT product_code, COUNT(*) AS review_count
+					FROM product_review
+					GROUP BY product_code) AS review_counts ON product.product_code = review_counts.product_code
+		GROUP BY product.product_code
+		<choose>
+			<when test="selectedRatingValue == 5">
+			    having IFNULL(AVG(product_review.star_count), 0) BETWEEN 5 AND 5
+			</when>
+			<when test="selectedRatingValue == 4">
+			    having IFNULL(AVG(product_review.star_count), 0) BETWEEN 4 AND 4.9
+			</when>
+			<when test="selectedRatingValue == 3">
+			    having IFNULL(AVG(product_review.star_count), 0) BETWEEN 3 AND 3.9
+			</when>
+			<when test="selectedRatingValue == 2">
+			    having IFNULL(AVG(product_review.star_count), 0) BETWEEN 2 AND 2.9
+			</when>
+			<when test="selectedRatingValue == 1">
+			    having IFNULL(AVG(product_review.star_count), 0) BETWEEN 1 AND 1.9			
+			</when>
+		</choose>
+		ORDER BY total_star_count DESC
+		LIMIT #{startRowIndex}, #{viewPostCountPerPage};
+		
+	</select>
+	
+	<select id="selectProductDetail" resultType="UserProductVO">
+		select product.*,
+		event.*
+		from product
+		join event on product.event_no = event.event_no
+		where product_code = #{product_code}
+	</select>
+
+	<select id="selectAlsoViewProduct" resultType="UserProductVO">
+		select product.*, product_category.*, stock.stock_quantity, event.*,
+		IFNULL(AVG(product_review.star_count), 0) AS total_star_count,
+    	IFNULL(review_counts.review_count, 0) AS review_count
+		from product
+		join
+		product_category on product.product_category_no =
+		product_category.product_category_no
+		join stock on product.product_code
+		= stock.product_code
+		join event on product.event_no = event.event_no
+		LEFT JOIN product_review ON product.product_code = product_review.product_code
+		LEFT JOIN (SELECT
+                   product_code,
+                   COUNT(*) AS review_count
+                   FROM product_review
+     			   GROUP BY product_code) AS review_counts ON product.product_code = review_counts.product_code
+		where product.product_category_no = #{product_category_no}
+		and product.product_code not in (#{product_code})
+		GROUP BY product.product_code
+		order by rand() limit 6;
+	</select>
+
+	<select id="selectProductCount" resultType="int">
+		select count(*) as totalProductCount from product
+		<choose>
+			<when
+				test="searchProduct != null and not searchProduct.equals('') and min == 0 and max == 0">
+				where product_name like '%${searchProduct}%'
+			</when>
+
+			<when test="category == 'cars'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.upper_category_no = 2
+			</when>
+
+			<when test="category == 'sportsCar'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 5
+			</when>
+
+			<when test="category == 'racingCar'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 7
+			</when>
+
+			<when test="category == 'sedan'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 15
+			</when>
+
+			<when test="category == 'largeCar'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 14
+			</when>
+
+			<when test="category == 'suv'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 6
+			</when>
+
+			<when test="category == 'motorcycle'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 13
+			</when>
+
+			<when test="category == 'ships'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.upper_category_no = 3
+			</when>
+
+			<when test="category == 'ship'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 8
+			</when>
+
+			<when test="category == 'boat'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 9
+			</when>
+
+			<when test="category == 'flyingObject'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.upper_category_no = 4
+			</when>
+
+			<when test="category == 'airplane'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 10
+			</when>
+
+			<when test="category == 'Helicopter'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 11
+			</when>
+
+			<when test="category == 'spacecraft'">
+				join product_category on product.product_category_no
+				=
+				product_category.product_category_no
+				where
+				product_category.product_category_no = 12
+			</when>
+
+			<when
+				test="category == 'all' and searchProduct.equals('') and min != 0 and max != 0">
+				where product_price between #{min} and #{max}
+			</when>
+		</choose>
+	</select>
+
+	<select id="selectProductCountForRating" resultType="int">
+		select count(*) as totalProductCount
+		from product
+		join product_review on product.product_code = product_review.product_code
+		where product_review.star_count
+		<choose>
+			<when test="selectedRatingValue == 5">
+				= 5
+			</when>
+			
+			<when test="selectedRatingValue == 4">
+				between 4 and 4.9
+			</when>
+			
+			<when test="selectedRatingValue == 3">
+				between 3 and 3.9
+			</when>
+			
+			<when test="selectedRatingValue == 2">
+				between 2 and 2.9
+			</when>
+			
+			<when test="selectedRatingValue == 1">
+				between 1 and 1.9
+			</when>
+		</choose>
+	</select>
+	
+	<select id="selectTotalReviewCount" resultType="int">
+		select count(*) as totalReviewCount
+		from product_review
+		where product_code = #{productCode}
+	</select>
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]======================================================================================================================================== -->
+	<select id="selectProductDataAllList"
+		resultType="UserOrderProductDTO">
+		SELECT P.product_code, P.product_name, FORMAT(P.product_price, 0) AS
+		product_price, P.product_main_image, (E.discount_rate * 100) AS
+		event_discount_rate,
+		CASE
+		<foreach collection="paymentList" item="item">
+			WHEN P.product_code = #{item.product_code}
+			THEN #{item.quantity}
+		</foreach>
+		END
+		AS quantity,
+		FORMAT(ROUND(
+		CASE
+		<foreach collection="paymentList" item="item">
+			WHEN P.product_code = #{item.product_code}
+			THEN P.product_price * (1-E.discount_rate)
+		</foreach>
+		END
+		), 0) AS event_product_price
+		FROM product P
+		INNER JOIN event E
+		ON P.event_no = E.event_no
+		WHERE P.product_code IN
+		<foreach collection="paymentList" item="item" open="("
+			close=")" separator=",">
+			#{item.product_code}
+		</foreach>
+	</select>
+
+	<select id="selectDetailedOrderDataList"
+		resultType="UserDetailedOrderDTO">
+		SELECT #{merchant_uid} AS merchant_uid, product_code, P.product_name,
+		P.product_price, P.product_main_image, E.discount_rate,
+		ROUND(
+		CASE
+		<foreach collection="product_code" item="item">
+			WHEN P.product_code = #{item}
+			THEN P.product_price * (1-E.discount_rate)
+		</foreach>
+		END
+		*
+		(1 - IFNULL((SELECT CP.discount_rate
+		FROM coupon_held CH
+		INNER JOIN coupon_policy CP
+		ON CH.coupon_policy_no = CP.coupon_policy_no
+		WHERE CH.coupon_held_no = #{coupon_held_no}), 0))
+		) AS discounted_price
+		FROM product P
+		INNER JOIN event E
+		ON P.event_no = E.event_no
+		WHERE P.product_code IN
+		<foreach collection="product_code" item="item" open="("
+			close=")" separator=",">
+			#{item}
+		</foreach>
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]======================================================================================================================================== -->
+
+	<!-- ================================================================================================================================================== -->
+</mapper>

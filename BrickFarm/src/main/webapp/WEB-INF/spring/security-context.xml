@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:oauth="http://www.springframework.org/schema/security/oauth2"
+	xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+	http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/security
+	http://www.springframework.org/schema/security/spring-security.xsd
+	http://www.springframework.org/schema/security/oauth2
+    http://www.springframework.org/schema/security/spring-security-oauth2.xsd">
+
+	<!-- <bean id="customAccessDenied" class="com.brickfarm.controller.security.SecurityAccessDeniedHandler"></bean>
+	<bean id="customLoginSuccess" class="com.brickfarm.controller.security.SecurityLoginSuccessHandler"></bean> -->
+
+
+
+	<!-- <security:http pattern="/" security="none"/> <security:http pattern="/user/member/registerMember" 
+		security="none"/> <security:http pattern="/user/member/loginMember" security="none"/> 
+		<security:http pattern="/user/member/loginregistermodel" security="none"/> -->
+<!-- 	<security:http pattern="/resources/*" security="none" />
+	<security:http pattern="/user/sms" security="none" />
+	<security:http pattern="/login/google" security="none" />
+	<security:http pattern="/login/oauth2/code/google" security="none" />
+	<security:http pattern="/login/oauth2/code" security="none" /> -->
+	
+	
+<!-- 	
+	 <security:oauth2client id="com.brick.auth.OAuth2LoginConfig">
+        <security:oauth2 authorization-code="authorizationGrantType"/>
+        <security:oauth2authorization-uri value="https://accounts.google.com/o/oauth2/auth" />
+        <security:oauth2token-uri value="https://accounts.google.com/o/oauth2/token" />
+        <security:oauth2user-info-uri value="https://www.googleapis.com/oauth2/v3/userinfo" />
+        <security:oauth2client-id value="your-client-id" />
+        <security:oauth2client-secret value="your-client-secret" />
+        <security:oauth2scope value="profile email" />
+    </security:oauth2client>
+		 
+ -->	
+
+
+<!-- 	
+	<security:http auto-config="true">
+		<security:intercept-url pattern="/user/*" access="hasRole('ROLE_MEMBER')" /> 모든 유저가 이용 가능한 페이지
+		<security:intercept-url pattern="/admin/*" access="hasRole('ROLE_ADMIN')" /> 관리자만 이용 가능한 페이지
+
+		<security:form-login login-page="/user/member/loginregistermodel" login-processing-url="/user/member/loginMember"
+			authentication-success-handler-ref="customLoginSuccess" />
+		<security:access-denied-handler ref="customAccessDenied" />
+
+ -->
+
+<!-- 
+	</security:http>
+ -->
+
+<!-- 
+	<security:authentication-manager>
+		<security:authentication-provider>
+			<security:jdbc-user-service
+				data-source-ref="dataSource" authorities-by-username-query="" />
+			<security:user-service>
+				<security:user name="member" password="member"
+					authorities="ROLE_MEMBER" />권한을 가지는 사용자 설정.. spring 624p
+				<security:user name="admin" password="admin"
+					authorities="ROLE_ADMIN, ROLE_MEMBER" />권한을 가지는 사용자 설정.. spring 
+					624p
+			</security:user-service>
+
+
+
+		</security:authentication-provider>
+	</security:authentication-manager>
+ -->
+
+</beans>

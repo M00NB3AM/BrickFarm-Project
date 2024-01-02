@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.InquiryImagesMapper">
+	<insert id="insertInquiryImages"
+		parameterType="java.util.HashMap">
+		INSERT INTO inquiry_images(
+			inquiry_board_no,
+			original_file_name,
+			new_file_name,
+			file_size,
+			thumbnail_file_name
+		) VALUES
+		<foreach collection="fileList" item="item" separator=" , ">
+			(
+				#{item.inquiry_board_no},
+				#{item.original_file_name},
+				#{item.new_file_name},
+				#{item.file_size},
+				#{item.thumbnail_file_name}
+			)
+		</foreach>
+	</insert>
+	
+	<insert id="insertInquiryImage">
+		INSERT INTO inquiry_images(
+			inquiry_board_no,
+			original_file_name,
+			new_file_name,
+			file_size,
+			thumbnail_file_name
+		)
+		VALUES(
+			#{inquiry_board_no},
+			#{original_file_name},
+			#{new_file_name},
+			#{file_size},
+			#{thumbnail_file_name}
+		)
+	</insert>
+	
+	<select id="selectInquiryImagesByInquiryNo" resultType="UserInquiryImages" >
+		SELECT * FROM inquiry_images
+		WHERE inquiry_board_no = #{inquiryBoardNo}
+	</select>
+	
+	<select id="selectInquiryImageByImageNo" resultType="UserInquiryImages" >
+		SELECT * FROM inquiry_images
+		WHERE inquiry_images_no = #{inquiryImageNo}
+	</select>
+	
+	<select id="selectInquiryImageByFileName" resultType="UserInquiryImages">
+		SELECT * FROM inquiry_images
+		WHERE new_file_name = #{newFileName}
+	</select>
+	
+	<delete id="deleteInquiryImagesByInquiryNo">
+		DELETE FROM inquiry_images
+		WHERE inquiry_board_no = #{inquiryBoardNo}
+	</delete>
+	
+	<delete id="deleteInquiryImagesByImageNo">
+		DELETE FROM inquiry_images
+		WHERE inquiry_images_no = #{inquiryImageNo}
+	</delete>
+</mapper>

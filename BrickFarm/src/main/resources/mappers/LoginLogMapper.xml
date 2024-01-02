@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.LoginLogMapper">
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<select id="findLoginLog" resultType="AdminLoginLogVO">
+		select l.login_log_no, l.login_date, m.member_id, m.member_name, m.email, m.phone_number 
+		from member m inner join login_log l on m.member_no = l.member_no
+		<where>
+		<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="date_start != '' and date_end != ''">
+			and DATE_FORMAT(login_date,'%Y-%m-%d') between
+			#{date_start} and #{date_end}
+		</if>
+		</where>
+	</select>
+	
+	<select id="findInactiveMemberInSixMonths" resultType="int">
+		<![CDATA[
+		select m.member_no from login_log l inner join member m on m.member_no = l.member_no
+		where upper(m.inactive_status) = 'N' group by member_no 
+		having max(l.login_date) < (SELECT DATE_FORMAT(NOW() - INTERVAL 6 MONTH,'%Y%m%d'))
+		union
+		select m.member_no from login_log l right join member m on m.member_no = l.member_no
+		where m.inactive_status = 'N' and l.login_date is null group by member_no 
+		having max(m.member_regist_date) < (SELECT DATE_FORMAT(NOW() - INTERVAL 6 MONTH,'%Y%m%d'))
+		]]>
+	</select>
+	
+	<select id="findWithdrawMemberLoginLogCount" resultType="int">
+		select count(*) from login_log l inner join withdraw_member wm on l.member_no = wm.member_no where wm.member_no = #{member_no}
+	</select>
+	
+	<select id="selectWithdrawMemberLoginLog" resultType="AdminLoginLogVO">
+		select l.login_log_no, l.login_date
+		from withdraw_member m inner join login_log l on m.member_no = l.member_no where m.member_no = #{member_no} limit #{startRowIndex}, #{rowOfNums}
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- 소셜로그인 로그기록 남기기 -->
+	<insert id="insertsnsloginlog">
+		insert into login_log (member_no) values (#{member_no})
+	</insert>
+	
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

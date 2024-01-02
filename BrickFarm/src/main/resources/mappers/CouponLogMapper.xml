@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.CouponLogMapper">
+	<!-- <select id="식별자" resultType="패키지명.클래스명"> SELECT * FROM test </select> -->
+
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+
+	<select id="findCouponUseLog" resultType="AdminCouponLogVO">
+		select m.member_id, m.member_name, ch.coupon_held_no, cp.coupon_policy_name, ch.published_date, ch.expiration_date, ch.available_coupon, cl.merchant_uid, cl.usage_date, cl.usage_reason 
+		from member m, coupon_held ch, coupon_policy cp, coupon_log cl
+		where m.member_no = ch.member_no and ch.coupon_held_no = cl.coupon_held_no and cp.coupon_policy_no = ch.coupon_policy_no
+
+		<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="date_start != '' and date_end != ''">
+		<choose>
+			<when test="dateOption == 'usage'">
+				and DATE_FORMAT(ch.expiration_date,'%Y-%m-%d') between #{date_start} and #{date_end}
+			</when>
+			<otherwise>			
+				and DATE_FORMAT(ch.published_date,'%Y-%m-%d') between #{date_start} and #{date_end}
+			</otherwise>
+		</choose>
+		</if>
+		order by ch.published_date desc
+	</select>
+	
+	<select id="findCouponAllLog" resultType="AdminCouponLogVO">
+	select m.member_id, m.member_name, ch.coupon_held_no, cp.coupon_policy_name, ch.published_date, ch.expiration_date, ch.available_coupon, cl.merchant_uid, cl.usage_date, cl.usage_reason
+	from coupon_held ch left outer join coupon_log cl on ch.coupon_held_no = cl.coupon_held_no
+	inner join coupon_policy cp on ch.coupon_policy_no = cp.coupon_policy_no
+	inner join member m on ch.member_no = m.member_no
+	<where>
+	<if test="member_name != ''">
+			and m.member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and m.member_id like '%${member_id}%'
+		</if>
+		<if test="date_start != '' and date_end != ''">
+		<choose>
+			<when test="dateOption == 'usage'">
+				and DATE_FORMAT(ch.expiration_date,'%Y-%m-%d') between #{date_start} and #{date_end}
+			</when>
+			<otherwise>			
+				and DATE_FORMAT(ch.published_date,'%Y-%m-%d') between #{date_start} and #{date_end}
+			</otherwise>
+		</choose>
+		</if>
+	</where>
+		order by ch.published_date desc
+	</select>
+	
+	<insert id="insertExpireCoupon" parameterType="java.util.List">
+	insert into coupon_log(coupon_held_no, usage_reason) values
+	<foreach collection="list" item="coupon" separator=" , ">
+	(
+	${coupon}, '만료'
+	)
+	</foreach>
+	</insert>
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<insert id="insertCouponLog">
+		INSERT INTO coupon_log (merchant_uid, coupon_held_no, usage_reason) 
+		VALUES (#{merchant_uid}, #{coupon_held_no}, #{usage_reason})
+	</insert>
+	
+	<delete id="deleteSchedulerCoupon">
+		DELETE 
+		FROM coupon_log 
+		WHERE coupon_held_no = #{coupon_held_no}
+	</delete>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

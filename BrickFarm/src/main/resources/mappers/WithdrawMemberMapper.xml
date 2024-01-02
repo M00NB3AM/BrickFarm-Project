@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.WithdrawMemberMapper">
+	<!-- 
+	<select id="식별자" resultType="패키지명.클래스명">
+		SELECT * FROM test
+	</select>
+ 	-->
+   
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<select id="findWithdrawMember" resultType="AdminWithdrawMemberVO">
+		select * from withdraw_member
+		<where>
+		<if test="member_no != 0">
+			and member_no = #{member_no}
+		</if>
+		<if test="withdraw_reason != 'all'">
+			and withdraw_reason like '%${withdraw_reason}%'
+		</if>
+		 <if test="member_name != ''">
+			and member_name like '%${member_name}%'
+		</if>
+		<if test="member_id != ''">
+			and member_id like '%${member_id}%'
+		</if>
+		<if test="date_start != '' and date_end != ''">
+			and DATE_FORMAT(withdraw_date,'%Y-%m-%d') between #{date_start} and #{date_end}
+		</if>
+		</where>
+	</select>
+	
+	<insert id="insertWithdrawMember">
+		insert into withdraw_member
+		(member_no, member_grade_name, member_id, member_name, phone_number, email, birth_date, address, member_regist_date, gender, access_token, withdraw_reason, reason_memo) 
+		select m.member_no, m.member_grade_name, m.member_id, m.member_name, m.phone_number, m.email, m.birth_date, m.address, m.member_regist_date, m.gender, m.access_token,
+		 #{withdraw_reason}, #{reason_memo} from member m where m.member_id = #{member_id}
+	</insert>
+	
+	<select id="findMemberOrderList" resultType="AdminMemberOrderVO">
+		select m.member_no, m.member_name, m.member_id,'탈퇴' member_grade_name, o.merchant_uid, o.order_day, o.total_state, o.total_complete_date
+		from withdraw_member  m inner join ordersheet o on m.withdraw_member_no = o.withdraw_member_no where m.member_no = #{member_no} limit #{startRowIndex}, #{rowOfNums}
+	</select>
+	
+	<select id="findOrderListCount" resultType="int">
+		select count(o.merchant_uid)	
+		from withdraw_member m inner join ordersheet o on m.withdraw_member_no = o.withdraw_member_no where m.member_no = #{member_no}
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<insert id="deleteMemberInsert" parameterType="com.brickfarm.dto.admin.kmh.AdminWithdrawMemberDTO">
+    <selectKey keyProperty="withdraw_member_no" resultType="int">
+        SELECT LAST_INSERT_ID()
+    </selectKey>
+    insert into withdraw_member
+    (member_grade_name, member_no, member_id, member_name, phone_number, email, birth_date, address, member_regist_date, gender, access_token, withdraw_reason, reason_memo) 
+    select m.member_grade_name, m.member_no, m.member_id, m.member_name, m.phone_number, m.email, m.birth_date, m.address, m.member_regist_date, m.gender, m.access_token,
+        #{withdraw_reason}, #{reason_memo} from member m where m.member_no = #{member_no}
+</insert>
+	
+	
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

@@ -1,0 +1,16 @@
+.bi-search__container {
+	display: flex;
+	justify-content: center;
+}
+
+.bi-search__wrapper {
+	display: flex;
+	justify-content: center;
+}
+
+.bi-search__wrapper .main-form {
+	width: 100%;
+}
+
+.bi-search__wrapper input {
+}

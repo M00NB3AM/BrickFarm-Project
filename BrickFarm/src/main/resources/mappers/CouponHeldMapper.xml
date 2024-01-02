@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.CouponHeldMapper">
+	<!-- <select id="식별자" resultType="패키지명.클래스명"> SELECT * FROM test </select> -->
+
+	<!-- ==[송지영]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== -->
+	<insert id="insertCouponToMember"
+      parameterType="AdminGiveCouponDTO">
+     insert into coupon_held(coupon_policy_no, member_no, published_date, expiration_date) VALUES
+     
+      <foreach collection="member_no" item="member" separator=" , ">
+            (
+            ${coupon_policy_no},
+            ${member},
+            now(),
+            (select date_format(date_format(now() + interval (select validity_period from coupon_policy where coupon_policy_no =  ${coupon_policy_no}) day, '%y%m%d') - interval 1 second, '%y-%m-%d %H:%i:%s'))
+            )
+      </foreach>
+   </insert>
+   
+   <insert id="insertCouponToGrade" parameterType="AdminGiveCouponDTO">
+   	insert into coupon_held(coupon_policy_no, member_no, published_date, expiration_date)
+ 	select #{coupon_policy_no}, m.member_no, 
+ 	now(), (
+ 	select date_format(date_format(now() + interval (select validity_period from coupon_policy where coupon_policy_no = #{coupon_policy_no}) day, '%y%m%d') - interval 1 second, '%y-%m-%d %H:%i:%s')
+ 	)
+ 	from member m inner join coupon_policy c on m.member_grade_name = c.member_grade_name
+ 	<where>
+ 	<if test="member_grade_name != 'all'">
+ 	m.member_grade_name = #{member_grade_name}
+ 	</if> 	
+ 	</where>
+ 	group by m.member_no;
+   </insert>
+   
+   <insert id="insertBirthDayCoupon">
+ 
+   	insert into coupon_held(coupon_policy_no, member_no, published_date, expiration_date) 
+	select 25, (select member_no from member where birth_date like '__${value}'),
+ 	now(), (
+ 	select date_format(date_format(now() + interval (select validity_period from coupon_policy where coupon_policy_no = 25) day, '%y%m%d') - interval 1 second, '%y-%m-%d %H:%i:%s')
+ 	);
+
+   </insert>
+   
+   <select id="selectExpirationCoupon" resultType="Integer">
+   	<![CDATA[ select coupon_held_no from coupon_held where expiration_date <= now() and available_coupon ='Y']]>
+   </select>
+   
+   <update id="updateAvailableCoupon" parameterType="java.util.List">
+   	update coupon_held set available_coupon = 'N' where coupon_held_no in
+   	<foreach collection="list" item="coupon" separator=" , " open="(" close=")">
+   	${coupon}
+   	</foreach>
+   </update>
+   
+   <select id="selectAvailableCoupon" resultType="Integer">
+	select count(*) from coupon_held where coupon_policy_no = #{coupon_policy_no} and available_coupon = 'Y';
+   </select>
+   
+   <select id="selectAvailableCoupons" resultType="Integer" parameterType="AdminGiveCouponDTO">
+	select count(*) from coupon_held where coupon_policy_no in
+	(
+	<foreach collection="member_no" item="coupon" separator=" , ">
+	${coupon}
+	</foreach>
+	) and available_coupon = 'Y';
+   </select>
+
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[이경민]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== -->
+	<!-- 쿠폰 정보 조회 -->
+	<select id="selectCouponInfo"
+		resultType="com.brickfarm.vo.user.psj.UserMemberHavingCouponVO">
+		SELECT cp.coupon_policy_name, cp.coupon_discription,
+		ch.coupon_held_no,
+		ch.published_date,
+		ch.expiration_date, ch.available_coupon,
+		cp.discount_rate,
+		cp.validity_period,
+		cl.usage_reason, cl.usage_date
+		FROM
+        coupon_held ch
+        INNER JOIN coupon_policy cp on ch.coupon_policy_no = cp.coupon_policy_no
+		LEFT OUTER JOIN coupon_log cl on cl.coupon_held_no = ch.coupon_held_no
+		WHERE ch.member_no = #{member_no}
+		<choose>
+		<when test='searchState == "available"'>
+		AND ch.available_coupon = 'Y'
+		</when>
+		<when test='searchState == "notAvailable"'>
+		AND ch.available_coupon = 'N'
+		</when>
+		</choose>
+		<choose>
+		<when test='searchOrder == "orderByRecent"'>
+		ORDER BY ch.published_date DESC
+		</when>
+		<when test='searchOrder == "orderByDiscountRate"'>
+		ORDER BY cp.discount_rate DESC
+		</when>
+		</choose>
+		LIMIT #{startRowIndex}, #{rowCountPerPage};
+	</select>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== -->
+	<select id="selectCouponHeld" resultType="UserCouponHeldDTO">
+		SELECT C.*, CP.discount_rate, CP.coupon_policy_name 
+		FROM coupon_held C 
+			INNER JOIN coupon_policy CP 
+				ON C.coupon_policy_no = CP.coupon_policy_no 
+		WHERE C.member_no = #{member_no} AND C.available_coupon = 'Y'
+	</select>
+	
+	<update id="updateCouponHeldOnAvailableCoupon">
+		UPDATE coupon_held 
+		SET available_coupon = "N" 
+		WHERE coupon_held_no = #{coupon_held_no}
+	</update>
+	
+	<select id="getValidationRate" resultType="float">
+		SELECT CP.discount_rate 
+		FROM coupon_held CH 
+			INNER JOIN coupon_policy CP
+				ON CH.coupon_policy_no = CP.coupon_policy_no
+		WHERE CH.coupon_held_no = #{coupon_held_no}
+	</select>
+	
+	<update id="updateSchedulerCouponYN">
+		UPDATE coupon_held 
+		SET available_coupon = "Y" 
+		WHERE coupon_held_no = #{coupon_held_no}
+	</update>
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== -->
+	<!-- ================================================================================================================================================== -->
+</mapper>

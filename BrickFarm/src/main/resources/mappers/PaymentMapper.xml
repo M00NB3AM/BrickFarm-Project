@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.PaymentMapper">
+   <!-- ==[송지영]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[김미형]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[이경민]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[염세환]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[박상진]======================================================================================================================================== -->
+   <select id="getActualPaymentAmount" resultType="int">
+	SELECT SUM(pay.card_pay_money + pay.cash_pay_money) AS totalPayment
+	FROM detailed_order AS od
+	INNER JOIN payment AS pay ON od.merchant_uid = pay.merchant_uid
+	WHERE od.detailed_order_no = #{detailedOrderNo};
+   </select>
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[송영태]======================================================================================================================================== -->
+   <insert id="insertPayment">
+   	INSERT INTO payment(imp_uid, merchant_uid, total_pay_money, total_discounted_price, post_money, 
+   		card_pay_money, cash_pay_money, point_pay_money, deposit_time, card_brand, 
+   		card_number, virtual_account_bank_brand, virtual_account_number, deposit_deadline)
+	VALUES(#{imp_uid}, #{merchant_uid}, #{total_pay_money}, #{total_discounted_price}, #{post_money}, 
+		#{card_pay_money}, #{cash_pay_money}, #{point_pay_money}, #{deposit_time}, #{card_brand}, 
+		#{card_number}, #{virtual_account_bank_brand}, #{virtual_account_number}, #{deposit_deadline})
+   </insert>
+   
+   <select id="selectPaymentByImpUid" resultType="int">
+   	SELECT COUNT(*) 
+   	FROM payment 
+   	WHERE imp_uid = #{imp_uid}
+   </select>
+   
+   <update id="updatePaymentOnCancel">
+   	UPDATE payment 
+   	SET total_pay_money = total_pay_money - (#{change_cancel_amount} + #{change_point_pay_money}),
+   		total_discounted_price = total_discounted_price - (#{change_cancel_amount} + #{change_point_pay_money}),
+   		<if test="pay_method == '카드'">
+   			card_pay_money = card_pay_money - #{change_cancel_amount},
+   		</if>
+   		<if test="pay_method == '현금'">
+   			cash_pay_money = cash_pay_money - #{change_cancel_amount},
+   		</if>
+   		point_pay_money = point_pay_money - #{change_point_pay_money},
+   		cancel_money = cancel_money + (#{change_cancel_amount} + #{change_point_pay_money})
+   	WHERE imp_uid = #{imp_uid}
+   </update>
+   
+   <update id="updatePaymentOnDepositorName">
+   	UPDATE payment
+   	SET deposit_time = #{now}, depositor_name = CASE
+   		<foreach collection="detailedOrderList" item="item">
+   			WHEN merchant_uid = (
+   				SELECT merchant_uid 
+   				FROM detailed_order 
+   				WHERE detailed_order_no = #{item.detailed_order_no}) 
+   			THEN #{item.depositor_name}
+   		</foreach>
+   			END
+   	WHERE merchant_uid 
+   		IN (SELECT merchant_uid 
+   			FROM detailed_order 
+   			WHERE detailed_order_no 
+   				IN (
+   				<foreach collection="detailedOrderList" item="item" separator=",">
+   					#{item.detailed_order_no}
+   				</foreach>
+   				)
+   			GROUP BY merchant_uid)
+   </update>
+   
+   <update id="updateSchedulerPayment">
+   	UPDATE payment 
+   	SET total_pay_money = 0,
+   		total_discounted_price = 0,
+   		card_pay_money = 0,
+   		cash_pay_money = 0,
+   		point_pay_money = 0,
+   		cancel_money = CASE
+   		<foreach collection="schedulerPaymentDataList" item="item">
+   			WHEN imp_uid = #{item.imp_uid}
+   			THEN (SELECT * FROM (SELECT total_pay_money FROM payment WHERE imp_uid = #{item.imp_uid}) AS P2)
+   		</foreach>
+   		END
+   	WHERE imp_uid IN 
+   		<foreach collection="schedulerPaymentDataList" item="item" open="(" close=")" separator= ",">
+   			#{item.imp_uid}
+   		</foreach>
+   </update>
+   
+   <select id="getSchedulerPaymentData" resultType="AdminSchedulerPaymentDataVO">
+   	SELECT O.merchant_uid, O.member_no, O.coupon_held_no, P.point_pay_money, P.imp_uid 
+   	FROM ordersheet O 
+   		INNER JOIN payment P 
+   			ON O.merchant_uid = P.merchant_uid 
+   	WHERE O.merchant_uid IN 
+   		<foreach collection="schedulerDataList" item="item" open="(" close=")" separator= ",">
+   			#{item.merchant_uid}
+   		</foreach>
+   </select>
+   
+   <select id="selectPaymentMoney" resultType="String">
+   	SELECT merchant_uid FROM payment WHERE merchant_uid IN 
+   		<foreach collection="compareMerchantUidList" item="item" open="(" close=")" separator= ",">
+   			#{item}
+   		</foreach>
+        AND (card_pay_money + cash_pay_money) !=0
+   </select>
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[김용진]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+</mapper>

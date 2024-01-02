@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.InquiryBoardMapper">
+		
+   <!-- ==[송지영]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[김미형]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[이경민]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[염세환]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[박상진]======================================================================================================================================== -->
+	<select id="selectAnsweredInquiry" resultType="com.brickfarm.vo.user.psj.UserInquiryInfoVO">
+		SELECT ib.*, COUNT(DISTINCT ib.inquiry_board_no) AS row_count, m.member_id
+		FROM inquiry_board ib
+		JOIN (
+		    SELECT ref
+		    FROM inquiry_board
+		    WHERE member_no IS NULL AND ref IN (
+		        SELECT inquiry_board_no
+		        FROM inquiry_board
+		        WHERE member_no = #{memberNo} AND is_delete = 'N'
+		    )
+		) subquery ON ib.inquiry_board_no = subquery.ref 
+		JOIN member m ON ib.member_no = m.member_no
+		WHERE ib.member_no = #{memberNo}
+		group by ib.inquiry_board_no;
+	</select>
+	
+	<select id="selectNoAnsweredInquiry" resultType="com.brickfarm.vo.user.psj.UserInquiryInfoVO">
+		SELECT ib.*, COUNT(DISTINCT ib.inquiry_board_no) AS row_count, m.member_id
+		FROM inquiry_board ib
+		JOIN member m ON ib.member_no = m.member_no
+		WHERE ib.member_no = #{memberNo}
+		  AND ib.inquiry_board_no NOT IN (
+		    SELECT ib2.inquiry_board_no 
+		    FROM inquiry_board ib2
+		    WHERE ib2.inquiry_board_no IN (
+		      SELECT ref 
+		      FROM inquiry_board 
+		      WHERE member_no IS NULL AND ref IN (
+		        SELECT inquiry_board_no 
+		        FROM inquiry_board 
+		        WHERE member_no = #{memberNo} AND is_delete = 'N'
+		      )
+		    )
+		  )
+		  AND ib.is_delete = 'N'
+		GROUP BY ib.inquiry_board_no;
+	</select>
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[송영태]======================================================================================================================================== -->
+   
+   <!-- ================================================================================================================================================== -->
+
+   <!-- ==[김용진]======================================================================================================================================== -->
+   <select id="selectInquiryByPaginationInfo" resultType="UserInquiry">
+		SELECT ib.*, inquiry_category_name, member.member_id, admin.admin_id
+		FROM inquiry_board ib
+			INNER JOIN inquiry_category ic
+				ON ib.inquiry_category_no = ic.inquiry_category_no
+			LEFT OUTER JOIN member
+				ON ib.member_no = member.member_no
+			LEFT OUTER JOIN admin
+				ON ib.admin_no = admin.admin_no
+		ORDER BY ref DESC, ref_order ASC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+   <select id="selectInquiryByCondition" resultType="UserInquiry">
+		SELECT ib.*, inquiry_category_name, member.member_id, admin.admin_id
+		FROM inquiry_board ib
+			INNER JOIN inquiry_category ic
+				ON ib.inquiry_category_no = ic.inquiry_category_no
+			LEFT OUTER JOIN member
+				ON ib.member_no = member.member_no
+			LEFT OUTER JOIN admin
+				ON ib.admin_no = admin.admin_no
+		WHERE ${searchType} like '%${searchWord}%'
+		ORDER BY ref DESC, ref_order ASC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<select id="selectMyInquiries" resultType="UserInquiry">
+		SELECT ib.*, inquiry_category_name, member.member_id, admin.admin_id
+		FROM inquiry_board ib
+			INNER JOIN inquiry_category ic
+				ON ib.inquiry_category_no = ic.inquiry_category_no
+			LEFT OUTER JOIN member
+				ON ib.member_no = member.member_no
+			LEFT OUTER JOIN admin
+				ON ib.admin_no = admin.admin_no
+		WHERE
+			ib.ref IN (
+				SELECT DISTINCT ref
+				FROM inquiry_board
+				WHERE
+					member_no = #{member_no}
+					AND step = 0
+			)
+			<if test="!searchWord.equals('')">
+				AND ${searchType} like '%${searchWord}%'
+			</if>
+		ORDER BY ref DESC, ref_order ASC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<select id="selectAllInquiryCount" resultType="int">
+		SELECT COUNT(*) FROM inquiry_board
+	</select>
+	
+	<select id="selectInquiryCountByCondition" resultType="int">
+		SELECT COUNT(*)
+		FROM inquiry_board ib
+			INNER JOIN inquiry_category ic
+				ON ib.inquiry_category_no = ic.inquiry_category_no
+			LEFT OUTER JOIN member
+				ON ib.member_no = member.member_no
+			LEFT OUTER JOIN admin
+				ON ib.admin_no = admin.admin_no
+		WHERE ${searchType} like '%${searchWord}%'
+	</select>
+	
+	<select id="selectMyInquiriesCount" resultType="int">
+		SELECT COUNT(*)
+		FROM inquiry_board ib
+			INNER JOIN inquiry_category ic
+				ON ib.inquiry_category_no = ic.inquiry_category_no
+			LEFT OUTER JOIN member
+				ON ib.member_no = member.member_no
+			LEFT OUTER JOIN admin
+				ON ib.admin_no = admin.admin_no
+		WHERE
+			ib.ref IN (
+				SELECT DISTINCT ref
+				FROM inquiry_board
+				WHERE
+					member_no = #{member_no}
+					AND step = 0
+			)
+			<if test="!searchWord.equals('')">
+				AND ${searchType} like '%${searchWord}%'
+			</if>
+	</select>
+	
+	<select id="selectNextRefOfInquiryBoard" resultType="int">
+		SELECT MAX(inquiry_board_no) + 1 FROM inquiry_board
+	</select>
+	
+	<insert id="insertInquiry">
+		INSERT INTO inquiry_board(
+			inquiry_category_no,
+			<choose>
+				<when test="member_no != -1">
+					member_no,
+				</when>
+				<otherwise>
+					admin_no,
+				</otherwise>
+			</choose>
+			title,
+			content,
+			ref
+		)
+		VALUES(
+			#{inquiry_category_no},
+			<choose>
+				<when test="member_no != -1">
+					#{member_no},
+				</when>
+				<otherwise>
+					#{admin_no},
+				</otherwise>
+			</choose>
+			#{title},
+			#{content},
+			#{ref}
+		)
+		<selectKey resultType="int" keyProperty="inquiry_board_no" order="AFTER">
+	        SELECT LAST_INSERT_ID()
+	    </selectKey>
+	</insert>
+	
+	<select id="selectInquiryByInquiryNo" resultType="UserInquiry">
+		SELECT ib.*, inquiry_category_name, member.member_id, admin.admin_id
+		FROM inquiry_board ib
+			INNER JOIN inquiry_category ic
+				ON ib.inquiry_category_no = ic.inquiry_category_no
+			LEFT OUTER JOIN member
+				ON ib.member_no = member.member_no
+			LEFT OUTER JOIN admin
+				ON ib.admin_no = admin.admin_no
+		WHERE ib.inquiry_board_no = #{inquiry_board_no}
+	</select>
+	
+	<update id="updateInquiryByInquiryNo">
+		UPDATE inquiry_board
+		SET title = #{title},
+			content = #{content},
+			updated_date = now(),
+			inquiry_category_no = #{inquiry_category_no}
+		WHERE inquiry_board_no = #{inquiry_board_no}		
+	</update>
+	
+	<update id="deleteInquiryByInquiryNo">
+		UPDATE inquiry_board
+		SET is_delete = 'Y'
+		WHERE inquiry_board_no = #{inquiryBoardNo}
+	</update>
+	
+	<select id="selectInquiriesByConditionCountInAdmin" resultType="int">
+		SELECT
+			COUNT(*)
+		FROM
+			inquiry_board ib
+			INNER JOIN inquiry_category ic
+			ON ib.inquiry_category_no = ic.inquiry_category_no
+				LEFT OUTER JOIN member m
+				ON ib.member_no = m.member_no
+					LEFT OUTER JOIN admin a
+					ON ib.admin_no = a.admin_no
+						INNER JOIN
+						(
+							SELECT
+								ref,
+								COUNT(*) AS 'tree_count'
+							FROM
+								inquiry_board
+							GROUP BY ref
+						) tree
+						ON ib.ref = tree.ref
+		WHERE
+			ib.is_delete = 'N'
+			<if test="categoryNo != -1">
+				AND ib.inquiry_category_no = #{categoryNo}
+			</if>
+			<if test="!searchValue.equals('')">
+				<choose>
+					<when test="searchKey.equals('inquiry_board_no')">
+						AND ${searchKey} = #{searchValue}
+					</when>
+					<otherwise>
+						AND ${searchKey} LIKE '%${searchValue}%'
+					</otherwise>
+				</choose>
+			</if>
+			<if test="isNeedResponse == true">
+				AND step = 0
+				AND tree_count = 1
+			</if>
+	</select>
+	
+	<select id="selectInquiriesByConditionInAdmin" resultType="AdminInquiry">
+		SELECT
+			ib.*,
+			ic.inquiry_category_name,
+			m.member_id,
+			a.admin_id,
+			tree.tree_count
+		FROM
+			inquiry_board ib
+			INNER JOIN inquiry_category ic
+			ON ib.inquiry_category_no = ic.inquiry_category_no
+				LEFT OUTER JOIN member m
+				ON ib.member_no = m.member_no
+					LEFT OUTER JOIN admin a
+					ON ib.admin_no = a.admin_no
+						INNER JOIN
+						(
+							SELECT
+								ref,
+								COUNT(*) AS 'tree_count'
+							FROM
+								inquiry_board
+							GROUP BY ref
+						) tree
+						ON ib.ref = tree.ref
+		WHERE
+			ib.is_delete = 'N'
+			<if test="categoryNo != -1">
+				AND ib.inquiry_category_no = #{categoryNo}
+			</if>
+			<if test="!searchValue.equals('')">
+				<choose>
+					<when test="searchKey.equals('inquiry_board_no')">
+						AND ${searchKey} = #{searchValue}
+					</when>
+					<otherwise>
+						AND ${searchKey} LIKE '%${searchValue}%'
+					</otherwise>
+				</choose>
+			</if>
+			<if test="isNeedResponse == true">
+				AND step = 0
+				AND tree_count = 1
+			</if>
+		ORDER BY ref DESC, ref_order ASC
+		LIMIT #{startRowIndex}, #{rowCountPerPage}
+	</select>
+	
+	<select id="selectInquiryByInquiryNoInAdmin" resultType="AdminInquiry">
+		SELECT
+			ib.*,
+			ic.inquiry_category_name,
+			m.member_id,
+			a.admin_id,
+			tree.tree_count
+		FROM
+			inquiry_board ib
+			INNER JOIN inquiry_category ic
+			ON ib.inquiry_category_no = ic.inquiry_category_no
+				LEFT OUTER JOIN member m
+				ON ib.member_no = m.member_no
+					LEFT OUTER JOIN admin a
+					ON ib.admin_no = a.admin_no
+						INNER JOIN
+						(
+							SELECT
+								ref,
+								COUNT(*) AS 'tree_count'
+							FROM
+								inquiry_board
+							GROUP BY ref
+						) tree
+						ON ib.ref = tree.ref
+		WHERE
+			ib.inquiry_board_no = #{inquiryBoardNo}
+	</select>
+	
+	<update id="updateRefOrder">
+		UPDATE inquiry_board
+		SET ref_order = #{ref_order} + 1
+		WHERE
+			ref = #{ref}
+			AND ref_order <![CDATA[>]]> #{ref_order}
+	</update>
+	
+	<insert id="insertReplyInquiry">
+		INSERT INTO inquiry_board(
+			inquiry_category_no,
+			admin_no,
+			title,
+			content,
+			ref,
+			step,
+			ref_order
+		)
+		VALUES(
+			#{inquiry_category_no},
+			#{admin_no},
+			#{title},
+			#{content},
+			#{ref},
+			#{step} + 1,
+			#{ref_order} + 1
+		)
+		<selectKey resultType="int" keyProperty="inquiry_board_no" order="AFTER">
+	        SELECT LAST_INSERT_ID()
+	    </selectKey>
+	</insert>
+   <!-- ================================================================================================================================================== -->
+</mapper>

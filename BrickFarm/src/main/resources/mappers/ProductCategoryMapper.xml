@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.brickfarm.mappers.ProductCategoryMapper">
+	<!-- ==[송지영]========================================================================================================================================= -->
+	<select id="selectAllCategory" resultType="AdminProductCategory">
+		select * from product_category;
+	</select>
+	<!--================================================================================================================================================== -->
+
+	<!-- ==[김미형]========================================================================================================================================== 
+		================================================================================================================================================== -->
+
+	<!-- ==[이경민]======================================================================================================================================= -->
+	
+	<select id="selectProductByCaterory" parameterType="String"
+		resultType="UserProductVO">
+		select product.*, product_category.*, stock.stock_quantity, event.*,
+		IFNULL(AVG(product_review.star_count), 0) AS total_star_count,
+    	IFNULL(review_counts.review_count, 0) AS review_count
+		from product
+		join product_category ON product.product_category_no =
+		product_category.product_category_no
+		join stock on product.product_code
+		= stock.product_code
+		join event on product.event_no = event.event_no
+		LEFT JOIN product_review ON product.product_code = product_review.product_code
+		LEFT JOIN (SELECT
+                   product_code,
+                   COUNT(*) AS review_count
+                   FROM product_review
+     			   GROUP BY product_code) AS review_counts ON product.product_code = review_counts.product_code
+		<choose>
+			<when
+				test="category == 'cars' and sortMethod == 'salesOrderSort'">
+				where product_category.upper_category_no = 2
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'cars' and sortMethod == 'lastOrderSort'">
+				where product_category.upper_category_no = 2
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when test="category == 'cars' and sortMethod == 'rowPriceSort'">
+				where product_category.upper_category_no = 2
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'cars' and sortMethod == 'highPriceSort'">
+				where product_category.upper_category_no = 2
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'sportsCar' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 5
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'sportsCar' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 5
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'sportsCar' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 5
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'sportsCar' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 5
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'racingCar' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 7
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'racingCar' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 7
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'racingCar' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 7
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'racingCar' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 7
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'sedan' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 15
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'sedan' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 15
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'sedan' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 15
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'sedan' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 15
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'largeCar' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 14
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'largeCar' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 14
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'largeCar' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 14
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'largeCar' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 14
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'suv' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 6
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when test="category == 'suv' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 6
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when test="category == 'suv' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 6
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when test="category == 'suv' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 6
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'motorcycle' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 13
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'motorcycle' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 13
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'motorcycle' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 13
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'motorcycle' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 13
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'ships' and sortMethod == 'salesOrderSort'">
+				where product_category.upper_category_no = 3
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'ships' and sortMethod == 'lastOrderSort'">
+				where product_category.upper_category_no = 3
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'ships' and sortMethod == 'rowPriceSort'">
+				where product_category.upper_category_no = 3
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'ships' and sortMethod == 'highPriceSort'">
+				where product_category.upper_category_no = 3
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'ship' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 8
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'ship' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 8
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when test="category == 'ship' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 8
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'ship' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 8
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'boat' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 9
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'boat' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 9
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when test="category == 'boat' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 9
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'boat' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 9
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'flyingObject' and sortMethod == 'salesOrderSort'">
+				where product_category.upper_category_no = 4
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'flyingObject' and sortMethod == 'lastOrderSort'">
+				where product_category.upper_category_no = 4
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'flyingObject' and sortMethod == 'rowPriceSort'">
+				where product_category.upper_category_no = 4
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'flyingObject' and sortMethod == 'highPriceSort'">
+				where product_category.upper_category_no = 4
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'airplane' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 10
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'airplane' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 10
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'airplane' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 10
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'airplane' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 10
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'Helicopter' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 11
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'Helicopter' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 11
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'Helicopter' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 11
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'Helicopter' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 11
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+			<when
+				test="category == 'spacecraft' and sortMethod == 'salesOrderSort'">
+				where product_category.product_category_no = 12
+				GROUP BY product.product_code
+				order by product_code asc
+			</when>
+
+			<when
+				test="category == 'spacecraft' and sortMethod == 'lastOrderSort'">
+				where product_category.product_category_no = 12
+				GROUP BY product.product_code
+				order by is_new desc
+			</when>
+
+			<when
+				test="category == 'spacecraft' and sortMethod == 'rowPriceSort'">
+				where product_category.product_category_no = 12
+				GROUP BY product.product_code
+				order by product_price asc
+			</when>
+
+			<when
+				test="category == 'spacecraft' and sortMethod == 'highPriceSort'">
+				where product_category.product_category_no = 12
+				GROUP BY product.product_code
+				order by product_price desc
+			</when>
+
+		</choose>
+		limit #{startRowIndex}, #{viewPostCountPerPage}
+	</select>
+	
+	<!-- ================================================================================================================================================== -->
+
+	<!-- ==[염세환]========================================================================================================================================== 
+		================================================================================================================================================== -->
+
+	<!-- ==[박상진]========================================================================================================================================== 
+		================================================================================================================================================== -->
+
+	<!-- ==[송영태]========================================================================================================================================== 
+		================================================================================================================================================== -->
+
+	<!-- ==[김용진]========================================================================================================================================== 
+		================================================================================================================================================== -->
+</mapper>

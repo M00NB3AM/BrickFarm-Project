@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+	<typeAliases>
+		<typeAlias type="com.brickfarm.vo.user.kyj.UserNoticeVO" alias="UserNotice" />
+		<typeAlias type="com.brickfarm.vo.user.kyj.UserNoticeCategoryVO" alias="UserNoticeCategory" />
+		<typeAlias type="com.brickfarm.vo.user.kyj.UserFaqVO" alias="UserFaq" />
+		<typeAlias type="com.brickfarm.vo.user.kyj.UserFaqCategoryVO" alias="UserFaqCategory" />
+		<typeAlias type="com.brickfarm.vo.user.kyj.UserInquiryVO" alias="UserInquiry" />
+		<typeAlias type="com.brickfarm.vo.user.kyj.UserInquiryCategoryVO" alias="UserInquiryCategory" />
+		<typeAlias type="com.brickfarm.vo.user.kyj.UserInquiryImagesVO" alias="UserInquiryImages" />
+		<typeAlias type="com.brickfarm.vo.admin.kyj.board.AdminInquiryVO" alias="AdminInquiry"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.board.AdminNoticeVO" alias="AdminNotice"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.board.AdminFaqVO" alias="AdminFaq"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.board.AdminBoardsStatVO" alias="AdminBoardsStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.board.AdminInquiriesGraphDataVO" alias="AdminInquiriesGraphData"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.dashboard.AdminDailyTotalNetSalesVO" alias="AdminDailyTotalNetSales"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.dashboard.AdminNetSalesByPeriodVO" alias="AdminNetSalesByPeriod"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.dashboard.AdminDailySalesCountRankVO" alias="AdminDailySalesCountRank"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.dashboard.AdminDailyCartRankVO" alias="AdminDailyCartRank"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.dashboard.AdminWeeklyCancelCountRankVO" alias="AdminWeeklyCancelCountRank"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.dashboard.AdminWeeklyCancelRatioRankVO" alias="AdminWeeklyCancelRatioRank"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.dashboard.AdminSalesRankPerCategoryVO" alias="AdminSalesRankPerCategory"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.netsales.AdminDailyNetSalesVO" alias="AdminDailyNetSales"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.netsales.AdminWeeklyNetSalesVO" alias="AdminWeeklyNetSales"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.netsales.AdminMonthlyNetSalesVO" alias="AdminMonthlyNetSales"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalsales.TotalSalesQuantityTop10VO" alias="TotalSalesQuantityTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalsales.TotalSalesAmountTop10VO" alias="TotalSalesAmountTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalsales.TotalSalesProductsStatVO" alias="TotalSalesProductsStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalsalesbycategory.TotalSalesQuantityByCategoryTop10VO" alias="TotalSalesQuantityByCategoryTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalsalesbycategory.TotalSalesAmountByCategoryTop10VO" alias="TotalSalesAmountByCategoryTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalsalesbycategory.TotalSalesProductsByCategoryStatVO" alias="TotalSalesProductsByCategoryStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalcanceled.TotalCanceledQuantityTop10VO" alias="TotalCanceledQuantityTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalcanceled.TotalCanceledRatioTop10VO" alias="TotalCanceledRatioTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.totalcanceled.TotalCanceledProductsStatVO" alias="TotalCanceledProductsStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.cart.CartMemberCountTop10VO" alias="CartMemberCountTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.cart.CartRegiCountTop10VO" alias="CartRegiCountTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.cart.CartStatVO" alias="CartStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.cartdetail.TotalCartDetailStatVO" alias="TotalCartDetailStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.wishlist.WishListMemberCountTop10VO" alias="WishListMemberCountTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.wishlist.WishListConfirmedCountTop10VO" alias="WishListConfirmedCountTop10"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.products.wishlist.WishListStatVO" alias="WishListStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.members.StatByDaynameVO" alias="StatByDayname"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.members.StatByHourVO" alias="StatByHour"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.members.StatByMemberGradeVO" alias="StatByMemberGrade"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.members.StatByRecipientAddressVO" alias="StatByRecipientAddress"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.statistics.members.TotalAccrualStatVO" alias="TotalAccrualStat"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.index.AdminTotalSalesStatByPeriodVO" alias="AdminTotalSalesStatByPeriod"/>
+		<typeAlias type="com.brickfarm.vo.admin.kyj.index.AdminMemberAndPointsAccrualInfoBy7DaysVO" alias="AdminMemberAndPointsAccrualInfoBy7Days"/>
+
+		<typeAlias type="com.brickfarm.vo.user.lkm.UserProductVO" alias="UserProductVO"/>
+		<typeAlias type="com.brickfarm.vo.user.lkm.UserProductImageVO" alias="UserProductImageVO"/>
+		<typeAlias type="com.brickfarm.vo.user.lkm.UserLikeProductVO" alias="UserLikeProductVO"/>
+		<typeAlias type="com.brickfarm.vo.user.lkm.UserProductReviewVO" alias="UserProductReviewVO"/>
+
+		<typeAlias type="com.brickfarm.vo.user.psj.ShoppingCartVO" alias="ShoppingCartVO"/>
+
+		<typeAlias type="com.brickfarm.vo.user.ysh.UserMemberVO" alias="UserMemberVO" />
+		
+		<typeAlias type="com.brickfarm.dto.user.syt.UserCouponHeldDTO" alias="UserCouponHeldDTO" />
+		<typeAlias type="com.brickfarm.dto.user.syt.UserOrderProductDTO" alias="UserOrderProductDTO" />
+		<typeAlias type="com.brickfarm.dto.user.syt.UserDetailedOrderDTO" alias="UserDetailedOrderDTO" />
+		<typeAlias type="com.brickfarm.dto.user.syt.UserPaymentListDTO" alias="UserPaymentListDTO" />
+		<typeAlias type="com.brickfarm.vo.user.syt.UserAddressVO" alias="UserAddressVO" />
+		<typeAlias type="com.brickfarm.dto.admin.syt.AdminCancelDataDTO" alias="AdminCancelDataDTO" />
+		<typeAlias type="com.brickfarm.dto.admin.syt.AdminDetailedOrderDTO" alias="AdminDetailedOrderDTO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminExchangeVO" alias="AdminExchangeVO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminCancellationReturnVO" alias="AdminCancellationReturnVO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminOrderVO" alias="AdminOrderVO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminOrderDetailVO" alias="AdminOrderDetailVO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminDeliveryVO" alias="AdminDeliveryVO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminDeliveryDetailVO" alias="AdminDeliveryDetailVO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminSchedulerDataVO" alias="AdminSchedulerDataVO" />
+		<typeAlias type="com.brickfarm.vo.admin.syt.AdminSchedulerPaymentDataVO" alias="AdminSchedulerPaymentDataVO" />
+		
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminOrderMemberVO" alias="AdminOrderMemberVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminMemberDashboardVO" alias="AdminMemberDashboardVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminMemberVO" alias="AdminMemberVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminInactiveMemberVO" alias="AdminInactiveMemberVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminWithdrawMemberVO" alias="AdminWithdrawMemberVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminCouponVo" alias="AdminCouponVo" />
+		<typeAlias type="com.brickfarm.dto.admin.kmh.AdminGiveCouponDTO" alias="AdminGiveCouponDTO" />
+		<typeAlias type="com.brickfarm.dto.admin.kmh.AdminWithdrawMemberDTO" alias="AdminWithdrawMemberDTO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminLoginLogVO" alias="AdminLoginLogVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminCouponLogVO" alias="AdminCouponLogVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminPointLogVO" alias="AdminPointLogVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminMemberOrderVO" alias="AdminMemberOrderVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminDetailOrderInfoVO" alias="AdminDetailOrderInfoVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminDetailOrderProductsVO" alias="AdminDetailOrderProductsVO" />
+		<typeAlias type="com.brickfarm.vo.admin.kmh.AdminChartVO" alias="AdminChartVO" />
+		
+		<typeAlias type="com.brickfarm.vo.admin.sjy.AdminProductVO" alias="AdminProduct" />
+		<typeAlias type="com.brickfarm.vo.admin.sjy.AdminProductImageVO" alias="ProductImage" />
+		<typeAlias type="com.brickfarm.vo.admin.sjy.AdminEventVO" alias="AdminEventVO" />
+		<typeAlias type="com.brickfarm.vo.admin.sjy.AdminProductCategoryVO" alias="AdminProductCategory" />
+		<typeAlias type="com.brickfarm.dto.admin.sjy.AdminReceivingDTO" alias="AdminReceiving" />
+		<typeAlias type="com.brickfarm.dto.admin.sjy.AdminCarryingOutDTO" alias="AdminCarryingOut" />
+		<typeAlias type="com.brickfarm.dto.admin.sjy.AdminPlaceOrderDTO" alias="AdminPlaceOrder" />
+		<typeAlias type="com.brickfarm.etc.sjy.AdminProductRank" alias="AdminProductRank" />
+		
+	</typeAliases>
+</configuration>
